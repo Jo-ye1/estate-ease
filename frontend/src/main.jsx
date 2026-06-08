@@ -7,11 +7,13 @@ import { ThemeProvider } from "./components/ui/ThemeProvider";
 import { AuthProvider } from "./contexts/AuthContext";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-  <AuthProvider>
+  <React.StrictMode>
     <BrowserRouter>
-      <ThemeProvider>
-        <AppRoutes />
-      </ThemeProvider>
+      <AuthProvider>
+        <ThemeProvider>
+          <AppRoutes />
+        </ThemeProvider>
+      </AuthProvider>
     </BrowserRouter>
-  </AuthProvider>
+  </React.StrictMode>
 );
