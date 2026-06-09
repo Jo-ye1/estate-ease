@@ -1,43 +1,45 @@
 import { createContext, useContext, useState, useEffect } from "react";
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
-export function AuthProvider({ children }) {
+export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // ⚡ Live token tracking hook triggers global component renders instantly
+  const [token, setToken] = useState(localStorage.getItem("token"));
 
-  // Automatically check if a valid token exists on startup
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
-    const token = localStorage.getItem("token");
-
-    if (storedUser && token) {
+    const storedToken = localStorage.getItem("token");
+    if (storedUser && storedToken) {
       setUser(JSON.parse(storedUser));
+      setToken(storedToken);
     }
-    setLoading(false);
   }, []);
 
-  // Login handler connecting the returned token signature strings
-  const login = (userData) => {
-    setUser(userData);
-    localStorage.setItem("user", JSON.stringify(userData));
-    if (userData.token) {
-      localStorage.setItem("token", userData.token);
+  // Combined active login handler hook
+  const login = (authData) => {
+    if (authData.token) {
+      localStorage.setItem("token", authData.token);
+      localStorage.setItem("user", JSON.stringify(authData.user || authData));
+      setToken(authData.token);
+      setUser(authData.user || authData);
     }
   };
 
-  // Logout handler to clean out authorization contexts
+  // Combined active logout handler hook
   const logout = () => {
-    setUser(null);
-    localStorage.removeItem("user");
     localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    setToken(null);
+    setUser(null);
+    window.location.href = "/";
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
-      {!loading && children}
+    <AuthContext.Provider value={{ user, token, login, logout }}>
+      {children}
     </AuthContext.Provider>
   );
-}
+};
 
 export const useAuth = () => useContext(AuthContext);

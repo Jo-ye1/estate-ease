@@ -1,11 +1,11 @@
 import api from "@/lib/api";
 
 /**
- * Fetch all properties available in the system
+ * Fetch all properties available in the system with optional query search filters
  * @route GET /api/properties
  */
-export const getProperties = async () => {
-  const { data } = await api.get("/properties");
+export const getProperties = async (queryParams = {}) => {
+  const { data } = await api.get("/properties", { params: queryParams });
   return data;
 };
 
@@ -28,17 +28,14 @@ export const createProperty = async (propertyData) => {
 };
 
 /**
- * Upload property image to Cloudinary via multi-part FormData payloads
+ * Upload property image locally via multi-part FormData payloads
  * @route POST /api/properties/:id/upload
  */
 export const uploadPropertyImage = async (propertyId, imageFile) => {
   const formData = new FormData();
-  
-  // Appends the raw binary file blob directly to the form data body
   formData.append("image", imageFile);
 
-  // Retrieve the auth token directly from your frontend storage setup
-  const token = localStorage.getItem("token"); // 👈 Adjust this if you store your token in cookies or state
+  const token = localStorage.getItem("token"); 
 
   const { data } = await api.post(
     `/properties/${propertyId}/upload`,
@@ -46,7 +43,6 @@ export const uploadPropertyImage = async (propertyId, imageFile) => {
     {
       headers: {
         "Content-Type": "multipart/form-data",
-        // Enforce authorization header presence explicitly for multi-part requests
         Authorization: `Bearer ${token}`, 
       },
     }
@@ -61,6 +57,15 @@ export const uploadPropertyImage = async (propertyId, imageFile) => {
  */
 export const getMyProperties = async () => {
   const { data } = await api.get("/properties/my-properties");
+  return data;
+};
+
+/**
+ * Fetch up to 3 related listings matching current type or location context
+ * @route GET /api/properties/:id/related
+ */
+export const getRelatedProperties = async (id) => {
+  const { data } = await api.get(`/properties/${id}/related`);
   return data;
 };
 

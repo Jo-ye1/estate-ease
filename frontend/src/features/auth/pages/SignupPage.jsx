@@ -6,6 +6,7 @@ import AuthInput from "../components/AuthInput";
 import AuthButton from "../components/AuthButton";
 import SocialLogin from "../components/SocialLogin";
 import { useAuth } from "../../../context/AuthContext";
+import { useFavorites } from "../../../context/FavoritesContext";
 import { registerUserAPI } from "@/services/authService";
 
 export default function SignupPage() {
@@ -16,6 +17,7 @@ export default function SignupPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { login } = useAuth();
+  const { loadFavorites } = useFavorites();
   const navigate = useNavigate();
 
   const handleSignup = async (e) => {
@@ -31,10 +33,15 @@ export default function SignupPage() {
 
     try {
       setIsSubmitting(true);
-      // Dispatches form values down to backend creation endpoint
       const data = await registerUserAPI({ name, email, password });
       
       login(data);
+      
+      if (data.token) {
+        localStorage.setItem("token", data.token);
+      }
+      await loadFavorites();
+
       navigate("/");
     } catch (error) {
       alert(error.response?.data?.message || "Registration encountered an error");
@@ -53,7 +60,7 @@ export default function SignupPage() {
             <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center mx-auto text-2xl">
               🏠
             </div>
-            <h1 className="mt-3 text-2xl font-bold">Create Account</h1>
+            <h1 className="mt-3 text-2xl font-bold text-slate-900 dark:text-white">Create Account</h1>
             <p className="text-gray-500 mt-1 text-sm">Sign up to get started</p>
           </div>
 

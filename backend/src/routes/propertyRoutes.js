@@ -6,7 +6,8 @@ import {
   updateProperty, 
   deleteProperty,
   createProperty,
-  uploadPropertyImage
+  uploadPropertyImage,
+  getRelatedProperties // 👈 Clean import mapping added
 } from "../controllers/propertyController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import upload from "../middleware/uploadMiddleware.js";
@@ -19,6 +20,7 @@ router.get("/", getProperties);
 // CRUCIAL: /my-properties must live ABOVE /:id so Express parses the string literally
 router.get("/my-properties", protect, getMyProperties);
 router.get("/:id", getPropertyById);
+router.get("/:id/related", getRelatedProperties); // 👈 C4: Public related recommendations endpoint
 
 // Protected endpoints requiring a valid login token header
 router.post("/", protect, createProperty);
@@ -32,7 +34,6 @@ router.post(
   (req, res, next) => {
     upload.single("image")(req, res, (err) => {
       if (err) {
-        // This will print the hidden Cloudinary/Multer error straight to your terminal window!
         console.error("🚨 DETAILED BACKEND FILE UPLOAD CRASH:", err);
         return res.status(400).json({ 
           message: `Upload engine failed: ${err.message}` 

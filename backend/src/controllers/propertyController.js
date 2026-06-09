@@ -78,12 +78,42 @@ export const uploadPropertyImage = async (req, res) => {
   }
 };
 
-// @desc    Get all properties
+// @desc    Get all properties with optional query filtering
 // @route   GET /api/properties
 // @access  Public
 export const getProperties = async (req, res) => {
   try {
-    const properties = await Property.find({}).populate("owner", "name email");
+    const query = {};
+
+    // Case-insensitive partial matching for location text
+    if (req.query.location) {
+      query.location = {
+        $regex: req.query.location,
+        $options: "i",
+      };
+    }
+
+    // Exact match filters
+    if (req.query.type) {
+      query.type = req.query.type;
+    }
+
+    if (req.query.bedrooms) {
+      query.bedrooms = Number(req.query.bedrooms);
+    }
+
+    // Dynamic price range building ($gte = Greater Than or Equal To, $lte = Less Than or Equal To)
+    if (req.query.minPrice || req.query.maxPrice) {
+      query.price = {};
+      if (req.query.minPrice) {
+        query.price.$gte = Number(req.query.minPrice);
+      }
+      if (req.query.maxPrice) {
+        query.price.$lte = Number(req.query.maxPrice);
+      }
+    }
+
+    const properties = await Property.find(query).populate("owner", "name email");
     res.json(properties);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -98,7 +128,6 @@ export const getMyProperties = async (req, res) => {
     const properties = await Property.find({
       owner: req.user._id,
     });
-
     res.json(properties);
   } catch (error) {
     res.status(500).json({
@@ -184,6 +213,35 @@ export const deleteProperty = async (req, res) => {
 
     await property.deleteOne();
     res.json({ message: "Property and associated local images removed successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+// @desc    Get related properties based on type or location (excluding current)
+// @route   GET /api/properties/:id/related
+// @access  Public
+export const getRelatedProperties = async (req, res) => {
+  try {
+    const property = await Property.findById(req.params.id);
+
+    if (!property) {
+      return res.status(404).json({ message: "Property not found" });
+    }
+
+    // Find properties matching the same type OR same location text, excluding the current property ID
+    const related = await Property.find({
+      _id: { $ne: property._id },
+      $or: [
+        { type: property.type },
+        { location: { $regex: property.location, $options: "i" } }
+      ]
+    })
+    .limit(3) // Cap at 3 related items max
+    .populate("owner", "name email");
+
+    res.json(related);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

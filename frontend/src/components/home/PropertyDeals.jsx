@@ -20,20 +20,20 @@ export default function PropertyDeals() {
     fetchProperties();
   }, []);
 
-  if (loading) return <h2 className="p-10 text-center">Loading deals...</h2>;
+  if (loading) return <h2 className="p-10 text-center text-white">Loading deals...</h2>;
 
-  // Grab the first 3 or 4 properties to display as featured deals
+  // Grab the first 3 properties to display as featured deals
   const featuredDeals = properties.slice(0, 3);
 
   return (
     <section className="max-w-7xl mx-auto px-6 py-12">
-      <h2 className="text-3xl font-bold mb-8">Latest Property Deals</h2>
+      <h2 className="text-3xl font-bold mb-8 text-slate-900 dark:text-white">Latest Property Deals</h2>
       
       <div className="grid md:grid-cols-3 gap-6">
         {featuredDeals.map((property) => (
           <PropertyCard
             key={property._id}
-            property={property}
+            item={property} // 👈 FIXED: Changed 'property={property}' to 'item={property}'
           />
         ))}
       </div>

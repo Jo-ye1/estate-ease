@@ -6,6 +6,7 @@ import AuthInput from "../components/AuthInput";
 import AuthButton from "../components/AuthButton";
 import SocialLogin from "../components/SocialLogin";
 import { useAuth } from "../../../context/AuthContext";
+import { useFavorites } from "../../../context/FavoritesContext"; // 👈 Context listener tracking added
 import { loginUserAPI } from "@/services/authService";
 
 export default function LoginPage() {
@@ -14,6 +15,7 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const { login } = useAuth();
+  const { loadFavorites } = useFavorites(); // 👈 Pull database list syncer down
   const navigate = useNavigate();
 
   const handleLogin = async () => {
@@ -28,6 +30,13 @@ export default function LoginPage() {
       
       // Saves returned record details and token inside context
       login(data);
+      
+      // 🛡️ Safe fallback ensures favorites fetch exactly when session tokens initialize
+      if (data.token) {
+        localStorage.setItem("token", data.token);
+      }
+      await loadFavorites();
+
       navigate("/");
     } catch (error) {
       alert(error.response?.data?.message || "Invalid account credentials");
@@ -46,7 +55,7 @@ export default function LoginPage() {
             <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center mx-auto text-2xl">
               🏠
             </div>
-            <h1 className="mt-3 text-2xl font-bold">Welcome Back</h1>
+            <h1 className="mt-3 text-2xl font-bold text-slate-900 dark:text-white">Welcome Back</h1>
             <p className="text-gray-500 mt-1 text-sm">Login to continue</p>
           </div>
 
@@ -68,8 +77,8 @@ export default function LoginPage() {
 
           <div className="flex justify-between mb-5 text-sm">
             <label className="flex items-center">
-              <input type="checkbox" />
-              <span className="ml-2 dark:text-gray-300">Remember me</span>
+              <input type="checkbox" className="rounded border-gray-300" />
+              <span className="ml-2 dark:text-gray-300 text-slate-700">Remember me</span>
             </label>
             <a href="#" className="text-blue-600 hover:underline">Forgot Password?</a>
           </div>

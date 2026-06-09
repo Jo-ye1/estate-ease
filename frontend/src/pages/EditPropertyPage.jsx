@@ -1,28 +1,57 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { getPropertyById, updateProperty } from "../services/propertyService";
 
-import {
-  createProperty,
-  uploadPropertyImage,
-} from "../services/propertyService";
-
-const AddPropertyPage = () => {
+const EditPropertyPage = () => {
+  const { id } = useParams();
   const navigate = useNavigate();
 
-  const [loading, setLoading] = useState(false);
-  const [image, setImage] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(""); // 👈 B6: Image Preview tracking state
-
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [existingImage, setExistingImage] = useState(""); 
+  
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     price: "",
     location: "",
-    type: "House", 
+    type: "House",
     bedrooms: "",
     bathrooms: "",
     area: "",
   });
+
+  useEffect(() => {
+    const loadPropertyData = async () => {
+      try {
+        setLoading(true);
+        const data = await getPropertyById(id);
+        
+        setFormData({
+          title: data.title || "",
+          description: data.description || "",
+          price: data.price || "",
+          location: data.location || "",
+          type: data.type || "House",
+          bedrooms: data.bedrooms || "",
+          bathrooms: data.bathrooms || "",
+          area: data.area || "",
+        });
+
+        if (data.images && data.images.length > 0) {
+          setExistingImage(data.images[0]);
+        }
+      } catch (error) {
+        console.error("Failed to fetch property details:", error);
+        alert("Could not load the requested property details.");
+        navigate("/dashboard");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) loadPropertyData();
+  }, [id, navigate]);
 
   const handleChange = (e) => {
     setFormData({
@@ -31,39 +60,27 @@ const AddPropertyPage = () => {
     });
   };
 
-  const handleImageChange = (e) => {
-    // 🔍 Isolate index 0 to grab the true binary data blob item out from the FileList collection
-    if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0]; // 👈 FIXED: Added [0] here to capture the single file
-      setImage(selectedFile);
-      setPreviewUrl(URL.createObjectURL(selectedFile)); // 👈 Now this works flawlessly
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // 🛡️ B7: Strict Client-Side Field Validation Checks
+    // 🛡️ B7: Strict Validation Safeguards for Editing
     if (!formData.title.trim() || !formData.description.trim() || !formData.location.trim()) {
-      return alert("Text inputs cannot contain only blank spacing elements.");
+      return alert("Text fields cannot be empty or contain only blank spaces.");
     }
     if (Number(formData.price) <= 0) {
-      return alert("Validation Failure: Price parameters must be positive numbers greater than 0.");
+      return alert("Validation Failure: Price must be a positive number greater than 0.");
     }
     if (Number(formData.bedrooms) < 0 || Number(formData.bathrooms) < 0) {
-      return alert("Validation Failure: Physical amenity room counts cannot fall below zero.");
+      return alert("Validation Failure: Room counts cannot be negative numbers.");
     }
     if (!formData.area || Number(formData.area) <= 0) {
-      return alert("Validation Failure: Area measurement cannot be empty and must be greater than 0.");
-    }
-    if (!image) {
-      return alert("Please select a property cover image before submitting.");
+      return alert("Validation Failure: Area measurement must be greater than 0 sq ft.");
     }
 
     try {
-      setLoading(true);
+      setSubmitting(true);
 
-      const cleanDataForBackend = {
+      const updatedPayload = {
         ...formData,
         price: Number(formData.price),
         bedrooms: Number(formData.bedrooms),
@@ -71,59 +88,43 @@ const AddPropertyPage = () => {
         area: Number(formData.area),
       };
 
-      // STEP 1: Create text database listing entries inside MongoDB
-      const createdProperty = await createProperty(cleanDataForBackend);
-
-      console.log("Created Property Data Payload:", createdProperty);
-
-      // STEP 2: Capture generated MongoDB Hex Identifier to dispatch multipart FormData locally
-      if (image && createdProperty && createdProperty._id) {
-        const uploadResponse = await uploadPropertyImage(
-          createdProperty._id,
-          image
-        );
-
-        console.log("Local Upload Response:", uploadResponse);
-      }
-
-      alert("Property created successfully!");
-
-      setTimeout(() => {
-        navigate("/properties");
-      }, 500);
+      await updateProperty(id, updatedPayload);
+      alert("Property updated successfully!");
+      navigate("/dashboard");
     } catch (error) {
-      console.error("Full Error Context Object:", error);
-      const backendMessage = error?.response?.data?.message;
-      const networkStatus = error?.response?.status;
-      
-      alert(
-        `Error Status: ${networkStatus || "Network Failure"}\nReason: ${backendMessage || error.message}`
-      );
+      console.error("Update process encountered an issue:", error);
+      alert(error.response?.data?.message || "Failed to update property listing.");
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <h2 className="text-xl font-medium text-slate-400 animate-pulse">Loading listing details...</h2>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-3xl mx-auto px-6 py-10 min-h-screen bg-slate-950">
-      <h1 className="text-4xl font-bold mb-8 text-white">
-        Add Property
-      </h1>
+      <h1 className="text-4xl font-bold mb-8 text-white">Edit Property Listing</h1>
 
       <form
         onSubmit={handleSubmit}
         className="space-y-6 bg-slate-900 p-8 rounded-2xl border border-slate-800 shadow-xl"
       >
-        {/* 🛠️ B6: Live Image Preview Window */}
-        {previewUrl && (
+        {/* B6: Stored Active Image Snapshot Preview Frame */}
+        {existingImage && (
           <div className="relative rounded-xl overflow-hidden border border-slate-700 h-64 bg-slate-950 shadow-inner">
             <img 
-              src={previewUrl} 
-              alt="Selected Asset Snapshot Preview" 
+              src={existingImage} 
+              alt="Current Property Display" 
               className="w-full h-full object-cover" 
             />
-            <div className="absolute bottom-3 left-3 bg-slate-900/80 border border-slate-700 backdrop-blur-sm text-xs text-slate-300 px-3 py-1 rounded-md">
-              Selected File Image Preview
+            <div className="absolute bottom-3 left-3 bg-blue-900/80 border border-blue-700 backdrop-blur-sm text-xs text-white px-3 py-1 rounded-md">
+              Current Active Image Display
             </div>
           </div>
         )}
@@ -134,7 +135,6 @@ const AddPropertyPage = () => {
             type="text"
             name="title"
             value={formData.title}
-            placeholder="Title"
             required
             onChange={handleChange}
             className="w-full px-4 py-3 border border-slate-700 rounded-xl bg-transparent text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -146,7 +146,6 @@ const AddPropertyPage = () => {
           <textarea
             name="description"
             value={formData.description}
-            placeholder="Description"
             required
             onChange={handleChange}
             className="w-full h-32 px-4 py-3 border border-slate-700 rounded-xl bg-transparent text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -160,7 +159,6 @@ const AddPropertyPage = () => {
               type="number"
               name="price"
               value={formData.price}
-              placeholder="Price"
               required
               onChange={handleChange}
               className="w-full px-4 py-3 border border-slate-700 rounded-xl bg-transparent text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -173,7 +171,6 @@ const AddPropertyPage = () => {
               type="text"
               name="location"
               value={formData.location}
-              placeholder="Location"
               required
               onChange={handleChange}
               className="w-full px-4 py-3 border border-slate-700 rounded-xl bg-transparent text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -181,33 +178,20 @@ const AddPropertyPage = () => {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-semibold text-slate-300 mb-2">Property Type</label>
-            <select
-              name="type"
-              value={formData.type}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border border-slate-700 rounded-xl bg-slate-900 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="House">House</option>
-              <option value="Apartment">Apartment</option>
-              <option value="Villa">Villa</option>
-              <option value="Hotel">Hotel</option>
-              <option value="Warehouse">Warehouse</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-slate-300 mb-2">Property Cover Image</label>
-            <input
-              type="file"
-              accept="image/*"
-              required
-              onChange={handleImageChange}
-              className="w-full px-4 py-2 border border-dashed border-slate-700 rounded-xl text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer"
-            />
-          </div>
+        <div>
+          <label className="block text-sm font-semibold text-slate-300 mb-2">Property Type</label>
+          <select
+            name="type"
+            value={formData.type}
+            onChange={handleChange}
+            className="w-full px-4 py-3 border border-slate-700 rounded-xl bg-slate-900 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="House">House</option>
+            <option value="Apartment">Apartment</option>
+            <option value="Villa">Villa</option>
+            <option value="Hotel">Hotel</option>
+            <option value="Warehouse">Warehouse</option>
+          </select>
         </div>
 
         <div className="grid grid-cols-3 gap-4">
@@ -217,7 +201,6 @@ const AddPropertyPage = () => {
               type="number"
               name="bedrooms"
               value={formData.bedrooms}
-              placeholder="Bedrooms"
               required
               onChange={handleChange}
               className="w-full px-4 py-3 border border-slate-700 rounded-xl bg-transparent text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -230,7 +213,6 @@ const AddPropertyPage = () => {
               type="number"
               name="bathrooms"
               value={formData.bathrooms}
-              placeholder="Bathrooms"
               required
               onChange={handleChange}
               className="w-full px-4 py-3 border border-slate-700 rounded-xl bg-transparent text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -243,7 +225,6 @@ const AddPropertyPage = () => {
               type="number"
               name="area"
               value={formData.area}
-              placeholder="Area"
               required
               onChange={handleChange}
               className="w-full px-4 py-3 border border-slate-700 rounded-xl bg-transparent text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -251,16 +232,25 @@ const AddPropertyPage = () => {
           </div>
         </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white font-bold py-3 rounded-xl transition-colors shadow-lg cursor-pointer"
-        >
-          {loading ? "Publishing..." : "Submit Property"}
-        </button>
+        <div className="flex gap-4">
+          <button
+            type="button"
+            onClick={() => navigate("/dashboard")}
+            className="w-1/3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold py-3 rounded-xl transition-colors cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-2/3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white font-bold py-3 rounded-xl transition-colors shadow-lg cursor-pointer"
+          >
+            {submitting ? "Saving changes..." : "Save Modifications"}
+          </button>
+        </div>
       </form>
     </div>
   );
 };
 
-export default AddPropertyPage;
+export default EditPropertyPage;
