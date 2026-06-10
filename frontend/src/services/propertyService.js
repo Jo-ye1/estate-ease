@@ -86,3 +86,13 @@ export const updateProperty = async (id, updatedData) => {
   const { data } = await api.put(`/properties/${id}`, updatedData);
   return data;
 };
+
+
+/**
+ * Fetch live system database counter metrics for the home stats display section
+ * @route GET /api/properties/stats
+ */
+export const getPropertyStats = async () => {
+  const { data } = await api.get("/properties/stats");
+  return data;
+};

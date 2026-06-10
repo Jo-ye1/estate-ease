@@ -1,13 +1,14 @@
 import express from "express";
-import { 
-  getProperties, 
+import {
+  getProperties,
   getMyProperties,
-  getPropertyById, 
-  updateProperty, 
+  getPropertyById,
+  updateProperty,
   deleteProperty,
   createProperty,
   uploadPropertyImage,
-  getRelatedProperties // 👈 Clean import mapping added
+  getRelatedProperties,
+  getStats
 } from "../controllers/propertyController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import upload from "../middleware/uploadMiddleware.js";
@@ -16,11 +17,11 @@ const router = express.Router();
 
 // Publicly accessible property display endpoints
 router.get("/", getProperties);
+router.get("/stats", getStats); // 👈 Positioned above dynamic parameter paths safely
 
-// CRUCIAL: /my-properties must live ABOVE /:id so Express parses the string literally
 router.get("/my-properties", protect, getMyProperties);
 router.get("/:id", getPropertyById);
-router.get("/:id/related", getRelatedProperties); // 👈 C4: Public related recommendations endpoint
+router.get("/:id/related", getRelatedProperties);
 
 // Protected endpoints requiring a valid login token header
 router.post("/", protect, createProperty);
