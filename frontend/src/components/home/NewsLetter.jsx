@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { subscribeToNewsletter } from "@/services/authService"; // 👈 Connects right to your new network service
+import { subscribeToNewsletter } from "@/services/authService";
+// TARGET ASSET imported directly into the code
+import heroImg from "@/assets/home.png"; 
 
 export default function Newsletter() {
   const [email, setEmail] = useState("");
@@ -12,19 +14,15 @@ export default function Newsletter() {
       return alert("Please enter a valid email address first.");
     }
 
-    // Quick structural syntax validation safeguard checks
     if (!email.includes("@") || !email.includes(".")) {
       return alert("Please enter a properly formatted email syntax (e.g., user@test.com).");
     }
 
     try {
       setIsSubmitting(true);
-      
-      // Fires the clean string parameter down to your new database lead system
       const response = await subscribeToNewsletter(email.trim());
-      
       alert(response.message || "Subscription successful! Thank you.");
-      setEmail(""); // Instantly wipes out input field state on success
+      setEmail(""); 
     } catch (error) {
       console.error("Newsletter pipeline error:", error);
       alert(error.response?.data?.message || "Subscription process encountered an issue.");
@@ -34,36 +32,64 @@ export default function Newsletter() {
   };
 
   return (
-    <section className="max-w-6xl mx-auto px-6 py-24">
-      <div className="rounded-3xl bg-blue-600 p-12 text-white shadow-xl">
-        <h2 className="text-4xl font-bold mb-4">
-          Subscribe To Get Latest News
-        </h2>
+    // 🎯 GLOBAL LAYOUT ENVELOPE: Locked to exactly max-w-[1320px] 
+    // Added margin-top to give the overflowing roof clean breathing room from the section above it
+    <section className="max-w-[1320px] mx-auto px-4 mt-24 mb-16 select-none text-left relative">
+      
+      {/* 🏢 MAIN SECTOR BACKDROP LAYER: Locked strictly to 373px height with overflow-visible turned on */}
+      <div className="w-full h-[373px] rounded-[32px] bg-[#e6f2ff] dark:bg-slate-900/40 border border-blue-100/50 dark:border-slate-800/80 flex items-center justify-between px-12 lg:px-20 relative overflow-visible transition-colors duration-200">
+        
+        {/* 📋 LEFT BLOCK TEXT PANEL: Budgeted exactly to the target 614x231px layout specifications */}
+        <div className="w-[614px] h-[231px] flex flex-col justify-between relative z-10 text-left py-1">
+          
+          {/* Target Blueprint Headline Typography - FIXED: Added tracking-tight */}
+          <h2 className="text-3xl lg:text-[40px] font-black tracking-tight leading-[1.2] text-[#0b4fb9] dark:text-blue-400">
+            Subscribe to get the latest <br />
+            news for you!
+          </h2>
 
-        <p className="mb-8 text-blue-100 font-medium">
-          Get real-time automated updates about hot property deals, investments, and market trends.
-        </p>
-
-        {/* Form component tracking wrappers safely prevent default reload clicks */}
-        <form onSubmit={handleSubscribeSubmit} className="flex flex-col md:flex-row gap-4">
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Enter your email address"
-            required
-            disabled={isSubmitting}
-            className="flex-1 rounded-xl px-5 py-3 text-slate-900 bg-white placeholder-slate-400 outline-none focus:ring-4 focus:ring-blue-400/50 transition-all font-medium disabled:opacity-80"
-          />
-
-          <button 
-            type="submit"
-            disabled={isSubmitting}
-            className="bg-white hover:bg-slate-100 disabled:bg-slate-100/70 text-blue-600 px-8 py-3 rounded-xl font-bold transition-all shadow-md cursor-pointer select-none text-center min-w-[140px]"
+          {/* White capsule input matrix form tray - FIXED: Scaled height and padding dynamically for balanced heft */}
+          <form 
+            onSubmit={handleSubscribeSubmit} 
+            className="w-full bg-white dark:bg-slate-950 p-2 rounded-xl border border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2 shadow-sm min-h-[56px]"
           >
-            {isSubmitting ? "Subscribing..." : "Subscribe"}
-          </button>
-        </form>
+            <div className="flex-1 h-[44px] px-3 flex items-center min-w-0">
+              <input 
+                type="email" 
+                placeholder="Enter your email..." 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={isSubmitting}
+                className="w-full text-xs font-bold text-slate-800 dark:text-white bg-transparent outline-none truncate placeholder-slate-400 dark:placeholder-slate-600 border-0 p-0 target-email-fix input-override" 
+              />
+            </div>
+            
+            {/* Deep corporate blue submit button */}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="h-[44px] px-6 bg-[#0b4fb9] hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold text-xs tracking-wide rounded-lg transition-colors flex items-center justify-center cursor-pointer border-0 shrink-0 shadow-sm min-w-[100px] disabled:opacity-80"
+            >
+              {isSubmitting ? "..." : "Subscribe"}
+            </button>
+          </form>
+
+        </div>
+
+        {/* 📷 RIGHT BLOCK COVER IMAGE HOUSING LAYER: Sized exactly to the target 491x435px blueprint parameters */}
+        {/* OVERFLOW RESTORED: Positioned absolutely to extend perfectly beyond the top and bottom of the parent layout box */}
+        <div 
+          className="absolute right-4 lg:right-16 bottom-[-1px] overflow-visible pointer-events-none select-none z-20 hidden md:block"
+          style={{ width: "491px", height: "435px" }}
+        >
+          <img 
+            src={heroImg} 
+            alt="Featured Suburban Asset Element Clipart" 
+            className="w-full h-full object-contain object-bottom filter drop-shadow-[0_25px_40px_rgba(0,0,0,0.08)]"
+          />
+        </div>
+
       </div>
     </section>
   );

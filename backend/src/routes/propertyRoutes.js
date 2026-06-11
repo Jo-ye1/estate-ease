@@ -12,12 +12,16 @@ import {
 } from "../controllers/propertyController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import upload from "../middleware/uploadMiddleware.js";
+import { contactAgent } from "../controllers/contactController.js";
 
 const router = express.Router();
 
 // Publicly accessible property display endpoints
 router.get("/", getProperties);
 router.get("/stats", getStats); // 👈 Positioned above dynamic parameter paths safely
+
+// Public endpoint for contacting an agent (Placed safely above dynamic/protected segments)
+router.post("/:id/contact", contactAgent);
 
 router.get("/my-properties", protect, getMyProperties);
 router.get("/:id", getPropertyById);

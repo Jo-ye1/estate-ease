@@ -24,3 +24,17 @@ export const protect = async (req, res, next) => {
     return res.status(401).json({ message: "Token failed" });
   }
 };
+
+
+// @desc    Enforce strict Admin security verification privileges
+export const admin = (req, res, next) => {
+  // 🛡️ Fail-safe double validation check ensures nested role properties parse cleanly
+  const userRole = req.user?.role || (req.user?.user && req.user.user.role);
+  
+  if (userRole && String(userRole).toLowerCase().trim() === "admin") {
+    next();
+  } else {
+    console.warn(`🚨 Admin Access Blocked. Detected account role payload: ${userRole}`);
+    res.status(403).json({ message: "Access Denied: Administrative security Clearance required." });
+  }
+};

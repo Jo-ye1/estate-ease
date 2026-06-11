@@ -8,7 +8,8 @@ import path from "path";
 // @access  Private
 export const createProperty = async (req, res) => {
   try {
-    const { title, description, price, location, type, bedrooms, bathrooms, area } = req.body;
+    // 🚀 FIXED: Added "status" to the destructuring list right here
+    const { title, description, price, location, type, status, bedrooms, bathrooms, area } = req.body;
 
     if (!req.user || !req.user._id) {
       return res.status(401).json({ 
@@ -19,12 +20,13 @@ export const createProperty = async (req, res) => {
     const property = await Property.create({
       title,
       description,
-      price,
+      price: Number(price),
       location,
       type,
-      bedrooms,
-      bathrooms,
-      area,
+      status: status || "For Sale", // 👈 FIXED: Saves the status cleanly inside MongoDB records
+      bedrooms: Number(bedrooms),
+      bathrooms: Number(bathrooms),
+      area: Number(area),
       owner: req.user._id, 
     });
 
@@ -34,83 +36,91 @@ export const createProperty = async (req, res) => {
   }
 };
 
-// @desc    Upload an image for a property locally
+// @desc    Upload multiple asset images simultaneously locally
 // @route   POST /api/properties/:id/upload
 // @access  Private
 export const uploadPropertyImage = async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({
-        message: "No file uploaded",
-      });
+    // 🛡️ Handles both single file or array parameters seamlessly
+    const files = req.files || (req.file ? [req.file] : []);
+
+    if (files.length === 0) {
+      return res.status(400).json({ message: "No picture files uploaded." });
     }
 
     const property = await Property.findById(req.params.id);
+    if (!property) return res.status(404).json({ message: "Listing not found." });
 
-    if (!property) {
-      return res.status(404).json({
-        message: "Property not found",
+    // 🛡️ SECURITY GUARD: Verify the active session user actually owns this listing
+    if (property.owner.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        message: "Forbidden: You are not authorized to add images to this property listing."
       });
     }
 
-    if (!property.images) {
+    if (!property.images || !Array.isArray(property.images)) {
       property.images = [];
     }
 
-    const localUrlPath = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+    // ⚡ Iterate over the multipart disk stream array data to map the local path URLs
+    files.forEach((file) => {
+      const localUrlPath = `${req.protocol}://${req.get("host")}/uploads/${file.filename}`;
+      property.images.push(localUrlPath);
+    });
 
-    property.images.push(localUrlPath);
     await property.save();
-
-    res.json({
-      message: "Image uploaded locally successfully",
-      image: localUrlPath,
-      property,
-    });
+    res.json({ message: "Gallery images uploaded successfully!", images: property.images, property });
   } catch (error) {
-    console.error("CRITICAL LOCAL UPLOAD CONTROLLER ERROR:", error);
-    res.status(500).json({
-      message: error.message,
-    });
+    res.status(500).json({ message: error.message });
   }
 };
 
-// @desc    Get all properties with optional query filtering
+// @desc    Get all properties with advanced query filtering pipelines (Phase 10 Upgraded)
 // @route   GET /api/properties
 // @access  Public
 export const getProperties = async (req, res) => {
   try {
     const query = {};
+    const { search, location, type, bedrooms, minPrice, maxPrice } = req.query;
 
-    if (req.query.location) {
-      query.location = {
-        $regex: req.query.location,
-        $options: "i",
-      };
+    // ⚡ Multi-Field Text Search (Matches words inside Title OR Description)
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } }
+      ];
     }
 
-    if (req.query.type) {
-      query.type = req.query.type;
+    // Case-insensitive partial matching for explicit location strings
+    if (location) {
+      query.location = { $regex: location, $options: "i" };
     }
 
-    if (req.query.bedrooms) {
-      query.bedrooms = Number(req.query.bedrooms);
+    // Exact category dropdown filtering
+    if (type && type !== "All") {
+      query.type = type;
     }
 
-    if (req.query.minPrice || req.query.maxPrice) {
+    // Exact primitive number match mapping
+    if (bedrooms && bedrooms !== "All") {
+      query.bedrooms = Number(bedrooms);
+    }
+
+    // Dynamic price range building ($gte = Greater Than or Equal To, $lte = Less Than or Equal To)
+    if (minPrice || maxPrice) {
       query.price = {};
-      if (req.query.minPrice) {
-        query.price.$gte = Number(req.query.minPrice);
-      }
-      if (req.query.maxPrice) {
-        query.price.$lte = Number(req.query.maxPrice);
-      }
+      if (minPrice) query.price.$gte = Number(minPrice);
+      if (maxPrice) query.price.$lte = Number(maxPrice);
     }
 
-    const properties = await Property.find(query).populate("owner", "name email");
+    const properties = await Property.find(query)
+      .sort({ createdAt: -1 })
+      .limit(9)
+      .populate("owner", "name email");
+
     res.json(properties);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: `Database Search Engine Error: ${error.message}` });
   }
 };
 
@@ -190,7 +200,7 @@ export const deleteProperty = async (req, res) => {
     if (property.images && property.images.length > 0) {
       for (const imageUrl of property.images) {
         try {
-          const filename = imageUrl.split("/uploads/")[1];
+          const filename = imageUrl.split("/uploads/");
           const localFilePath = path.join(process.cwd(), "uploads", filename);
 
           if (fs.existsSync(localFilePath)) {
@@ -243,7 +253,6 @@ export const getStats = async (req, res) => {
   try {
     const totalProperties = await Property.countDocuments();
 
-    // 🧹 Safe structural fallback queries directly to MongoDB connection layers
     const totalUsers = await mongoose.connection.db.collection("users").countDocuments().catch(() => 12);
     const totalFavorites = await mongoose.connection.db.collection("favorites").countDocuments().catch(() => 8);
 

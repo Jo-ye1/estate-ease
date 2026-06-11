@@ -96,3 +96,13 @@ export const getPropertyStats = async () => {
   const { data } = await api.get("/properties/stats");
   return data;
 };
+
+
+/**
+ * Dispatch an automated client lead inquiry message directly to the property's listing seller
+ * @route POST /api/properties/:id/contact
+ */
+export const submitContactInquiry = async (propertyId, leadData) => {
+  const { data } = await api.post(`/properties/${propertyId}/contact`, leadData);
+  return data;
+};

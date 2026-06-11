@@ -16,6 +16,13 @@ const propertySchema = new mongoose.Schema(
       required: true,
     },
     
+    // 🏷️ STATUS TRACKING KEY: Restricts database records to specific strings
+    status: {
+      type: String,
+      enum: ["For Sale", "For Rent"],
+      default: "For Sale"
+    },
+
     // ========================================================
     // CRUCIAL SCHEMA CORRECTION: MUST BE AN ARRAY OF STRINGS
     // ========================================================

@@ -1,80 +1,154 @@
-import React from "react";
-
-const testimonialData = [
-  {
-    id: 1,
-    name: "John Smith",
-    role: "Property Owner",
-    avatar: "https://unsplash.com",
-    quote: "Estate Ease made leasing my apartments a breeze! The interface is highly responsive, and I managed to secure trusted verified clients in less than a week.",
-    stars: 5
-  },
-  {
-    id: 2,
-    name: "Sarah Johnson",
-    role: "Investor & Buyer",
-    avatar: "https://unsplash.com",
-    quote: "The absolute best real estate tracking platform I have used this year. Local image uploads load fast, and bookmarking houses to my favorites is seamless.",
-    stars: 5
-  },
-  {
-    id: 3,
-    name: "Michael Brown",
-    role: "Home Owner",
-    avatar: "https://unsplash.com",
-    quote: "The search matching engine is incredibly accurate. I filtered by house type and location and found my dream villa instantly. Highly recommended!",
-    stars: 5
-  }
-];
+import { useEffect, useState } from "react";
+import api from "../../lib/api";
 
 export default function Testimonials() {
-  return (
-    <section className="bg-slate-50 dark:bg-slate-950 border-t border-b border-slate-100 dark:border-slate-900/60 py-24">
-      <div className="max-w-7xl mx-auto px-6">
-        
-        <div className="text-center max-w-2xl mx-auto mb-16">
-          <span className="text-blue-500 font-bold text-xs uppercase tracking-widest bg-blue-500/10 px-3 py-1 rounded-full">Testimonials</span>
-          <h2 className="text-4xl font-extrabold text-slate-900 dark:text-white mt-3 tracking-tight">What Our Clients Say</h2>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mt-2">Hear directly from home owners, brokers, and investors using our local ecosystem platforms</p>
-        </div>
+  const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeSlide, setActiveSlide] = useState(1); 
 
-        <div className="grid md:grid-cols-3 gap-8">
-          {testimonialData.map((client) => (
-            <div 
-              key={client.id} 
-              className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-6 rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between"
+  useEffect(() => {
+    const fetchLiveReviews = async () => {
+      try {
+        setLoading(true);
+        const { data } = await api.get("/testimonials");
+        setReviews((data || []).slice(0, 3));
+      } catch (err) {
+        console.error("Failed loading backend customer reviews:", err);
+        setReviews([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchLiveReviews();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="max-w-[1305px] mx-auto px-4 my-16 text-center">
+        <div className="text-sm font-bold text-slate-400 animate-pulse">Loading customer feedback...</div>
+      </div>
+    );
+  }
+
+  const fallbackReviews = [
+    { _id: "f1", quote: "Incredibly smooth experience from start to finish! I found a great apartment, bookmarked my favorites, and reached out to the owner directly through the site. Everything worked perfectly.", user: { name: "Christopher J. Larson", role: "user" }, stars: 5 },
+    { _id: "f2", quote: "Estate Ease is hands down the best property platform I've used. Sleek design, fast search metrics, and fantastic user experience. 10/10!", user: { name: "Derrick P. Boudreaux", role: "user" }, stars: 5 },
+    { _id: "f3", quote: "As a broker, this platform has completely transformed how I manage my listings. The dashboard is intuitive, uploading property data is lightning-fast, and the inquiry leads come straight to my inbox without any hassle. A...", user: { name: "Stanley S. Nesbitt", role: "user" }, stars: 5 }
+  ];
+
+  const displayList = reviews.length >= 3 ? reviews : fallbackReviews;
+
+  return (
+    <section className="max-w-[1305px] mx-auto px-4 my-16 select-none text-left">
+      
+      {/* LEFT FLUSH HEADER COMPONENT ROW WITH ACCENT LINE */}
+      <div className="mb-12 relative inline-block max-w-max">
+        <h2 className="text-2xl lg:text-3xl font-black text-slate-800 dark:text-white tracking-tight pb-3">
+          What Our <span className="text-blue-600 dark:text-blue-500">Client</span> Says
+        </h2>
+        <div className="absolute bottom-0 left-0 w-2/3 h-[2px] bg-blue-600 dark:bg-blue-500 rounded-full" />
+      </div>
+
+      {/* 📊 GRID PATTERN STRUCTURE */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 justify-items-center items-center">
+        {displayList.map((client, index) => {
+          const isActive = activeSlide === index;
+          const reviewerName = client.user?.name || "Verified Customer";
+          const reviewerRole = client.user?.role || "user";
+          const firstLetter = reviewerName.charAt(0).toUpperCase();
+
+          return (
+            <div
+              key={client._id || index}
+              onClick={() => setActiveSlide(index)}
+              className={`relative rounded-2xl p-6 flex flex-col justify-between w-full max-w-[380px] h-[340px] transition-all duration-300 cursor-pointer overflow-hidden border bg-white ${
+                isActive
+                  ? "border-blue-600 dark:border-blue-500 shadow-[0_20px_50px_rgba(11,79,185,0.04)] dark:shadow-black/40 scale-[1.02] z-10"
+                  : "border-slate-200/80 dark:border-slate-800/40 opacity-70 hover:opacity-100"
+              }`}
             >
-              <div>
-                {/* Star Rating Generation */}
-                <div className="flex gap-1 text-yellow-400 text-sm mb-4">
-                  {Array.from({ length: client.stars }).map((_, idx) => (
-                    <span key={idx}>⭐</span>
-                  ))}
+              
+              <div className="relative z-10 text-left">
+                {/* 🎯 FIXED AVATAR GEOMETRY: Changed from a circle to a clean rounded rectangle (rounded-xl) */}
+                <div className={`w-12 h-12 rounded-xl text-white font-black text-sm flex items-center justify-center uppercase shadow-sm mb-4 shrink-0 transition-all ${
+                  isActive ? "bg-blue-600 scale-[1.02]" : "bg-slate-300 dark:bg-slate-700"
+                }`}>
+                  {firstLetter}
                 </div>
-                
-                <p className="text-slate-600 dark:text-slate-300 italic text-sm leading-relaxed">
-                  "{client.quote}"
-                </p>
+
+                {/* Quote Text Element */}
+                <div className="w-full max-w-[336px] h-[72px] overflow-hidden flex items-start">
+                  <p className={`text-[11.5px] font-medium leading-[1.6] tracking-wide line-clamp-4 transition-colors ${
+                    isActive ? "text-slate-700 dark:text-slate-300" : "text-slate-400 dark:text-slate-500"
+                  }`}>
+                    "{client.quote || client.text}"
+                  </p>
+                </div>
               </div>
 
-              {/* Client Profile Identity Row */}
-              <div className="flex items-center gap-3 mt-6 border-t border-slate-100 dark:border-slate-800/60 pt-4">
-                <img 
-                  src={client.avatar} 
-                  alt={client.name} 
-                  className="w-10 h-10 rounded-full object-cover border border-blue-500/20"
-                />
-                <div>
-                  <h4 className="font-bold text-sm text-slate-900 dark:text-white">{client.name}</h4>
-                  <p className="text-xs text-slate-400 font-medium">{client.role}</p>
+              {/* Quote Mark Watermark decal */}
+              <div className={`absolute right-6 top-12 font-serif font-black select-none pointer-events-none z-0 text-7xl transition-colors ${
+                isActive ? "text-slate-100 dark:text-slate-800/10" : "text-slate-100/40 dark:text-slate-800/5"
+              }`}>
+                ”
+              </div>
+
+              <div className="w-full flex flex-col items-center z-10 mt-2">
+                {/* Card Divider Line */}
+                <div className="w-full max-w-[348px] h-[1px] bg-slate-100 dark:bg-slate-800/40 mb-4 select-none pointer-events-none" />
+
+                {/* Lower User Meta Layer */}
+                <div className="w-full flex items-end justify-between px-1">
+                  <div className="text-left flex flex-col justify-end min-w-0">
+                    <div className="w-full max-w-[159px] h-[22px] flex items-center overflow-hidden">
+                      <h4 className={`font-bold text-[13px] tracking-tight truncate leading-none transition-colors ${
+                        isActive ? "text-slate-800 dark:text-slate-200" : "text-slate-400 dark:text-slate-500"
+                      }`}>
+                        {reviewerName}
+                      </h4>
+                    </div>
+                    <div className="w-full max-w-[101px] h-[19px] flex items-center overflow-hidden mt-0.5">
+                      <p className={`text-[10px] font-black tracking-wide uppercase transition-colors ${
+                        isActive ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"
+                      }`}>
+                        {reviewerRole}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Stars Matrix Grid */}
+                  <div className={`w-full max-w-[96px] h-[16px] flex items-center justify-end gap-0.5 text-amber-400 text-[11px] mb-0.5 overflow-hidden transition-opacity ${
+                    isActive ? "opacity-100" : "opacity-40"
+                  }`}>
+                    {Array.from({ length: client.stars || 5 }).map((_, idx) => (
+                      <span key={idx} className="select-none leading-none">★</span>
+                    ))}
+                  </div>
                 </div>
               </div>
 
             </div>
-          ))}
-        </div>
-
+          );
+        })}
       </div>
+
+      {/* Pagination Slider Indicator Diamonds Track */}
+      <div className="flex justify-center items-center gap-2 mt-12">
+        {[0, 1, 2].map((idx) => (
+          <button
+            key={idx}
+            type="button"
+            onClick={() => setActiveSlide(idx)}
+            className={`transition-all duration-300 cursor-pointer border-0 p-0 flex items-center justify-center ${
+              activeSlide === idx 
+                ? "w-2.5 h-2.5 bg-blue-600 dark:bg-blue-500 rotate-45" 
+                : "w-1.5 h-1.5 bg-slate-300 dark:bg-slate-700"
+            }`}
+            style={{ borderRadius: activeSlide === idx ? '0px' : '50%' }}
+          />
+        ))}
+      </div>
+
     </section>
   );
 }

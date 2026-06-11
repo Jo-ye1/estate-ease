@@ -4,40 +4,55 @@ const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  // ⚡ Live token tracking hook triggers global component renders instantly
   const [token, setToken] = useState(localStorage.getItem("token"));
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    const storedToken = localStorage.getItem("token");
-    if (storedUser && storedToken) {
-      setUser(JSON.parse(storedUser));
-      setToken(storedToken);
-    }
+    const initializeAuthSession = () => {
+      try {
+        const storedUser = localStorage.getItem("user");
+        const storedToken = localStorage.getItem("token");
+
+        if (storedToken && storedUser) {
+          setToken(storedToken);
+          // Safely parse user payload context object rules
+          const parsedUser = JSON.parse(storedUser);
+          setUser(parsedUser.user ? parsedUser.user : parsedUser);
+        }
+      } catch (err) {
+        console.error("Auth session restore failure:", err.message);
+        localStorage.clear();
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeAuthSession();
   }, []);
 
-  // Combined active login handler hook
   const login = (authData) => {
     if (authData.token) {
       localStorage.setItem("token", authData.token);
-      localStorage.setItem("user", JSON.stringify(authData.user || authData));
+      
+      // Extract accurate user document metrics safely
+      const cleanUserObj = authData.user ? authData.user : authData;
+      localStorage.setItem("user", JSON.stringify(cleanUserObj));
+      
       setToken(authData.token);
-      setUser(authData.user || authData);
+      setUser(cleanUserObj);
     }
   };
 
-  // Combined active logout handler hook
   const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    localStorage.clear();
     setToken(null);
     setUser(null);
     window.location.href = "/";
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout }}>
-      {children}
+    <AuthContext.Provider value={{ user, token, login, logout, loading }}>
+      {!loading && children}
     </AuthContext.Provider>
   );
 };

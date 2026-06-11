@@ -24,6 +24,12 @@ const userSchema = new mongoose.Schema(
       default: "user",
     },
 
+    // Inside your user Schema definition block, add this key:
+    avatar: {
+        type: String,
+        default: "" // Fallback initialization defaults to empty text string
+    },
+
     // Tracks properties marked as favorites by storing cross-referenced MongoDB IDs
     favorites: [
       {

@@ -12,7 +12,8 @@ import Footer from "../layout/Footer";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950">
+    // ⚡ Master template container frame wraps your elements cleanly without layout shifting
+    <div className="min-h-screen bg-white dark:bg-slate-950 transition-colors duration-200 overflow-x-hidden">
       <Navbar />
       <Hero />
       <PropertyTypes />

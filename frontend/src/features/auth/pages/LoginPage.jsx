@@ -6,7 +6,7 @@ import AuthInput from "../components/AuthInput";
 import AuthButton from "../components/AuthButton";
 import SocialLogin from "../components/SocialLogin";
 import { useAuth } from "../../../context/AuthContext";
-import { useFavorites } from "../../../context/FavoritesContext"; // 👈 Context listener tracking added
+import { useFavorites } from "../../../context/FavoritesContext"; 
 import { loginUserAPI } from "@/services/authService";
 
 export default function LoginPage() {
@@ -15,7 +15,7 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const { login } = useAuth();
-  const { loadFavorites } = useFavorites(); // 👈 Pull database list syncer down
+  const { loadFavorites } = useFavorites(); 
   const navigate = useNavigate();
 
   const handleLogin = async () => {
@@ -25,19 +25,39 @@ export default function LoginPage() {
 
     try {
       setIsSubmitting(true);
-      // Calls real database service function
       const data = await loginUserAPI({ email, password });
       
-      // Saves returned record details and token inside context
       login(data);
-      
-      // 🛡️ Safe fallback ensures favorites fetch exactly when session tokens initialize
       if (data.token) {
         localStorage.setItem("token", data.token);
       }
       await loadFavorites();
 
-      navigate("/");
+      // ⚡ REFACTORED FAIL-SAFE ROLE DETECTOR REDIRECT PIPELINE
+      let userRole = "user"; // Standard user fallback parameter rule
+
+      if (data) {
+        if (data.user && data.user.role) {
+          userRole = data.user.role;
+        } else if (data.role) {
+          userRole = data.role;
+        }
+      }
+
+      // Convert layout explicitly to clean lowercase to avoid comparison mismatch crashes
+      const finalRoleString = String(userRole).toLowerCase().trim();
+
+      if (finalRoleString === "admin") {
+        alert("Welcome Back, Master Admin! Accessing System Control Matrix...");
+        navigate("/admin-dashboard"); 
+      } else if (finalRoleString === "seller" || finalRoleString === "broker") {
+        alert("Login Successful! Accessing your Owner Dashboard operations...");
+        navigate("/dashboard"); 
+      } else {
+        alert("Login Successful! Welcome to Estate Ease.");
+        navigate("/"); 
+      }
+
     } catch (error) {
       alert(error.response?.data?.message || "Invalid account credentials");
     } finally {
