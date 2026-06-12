@@ -1,12 +1,33 @@
-import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { Building2, Heart, Sparkles, Edit3, Trash2, LayoutDashboard, Zap, History, FileText } from "lucide-react"; 
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import { 
+  Building2, 
+  Heart, 
+  Sparkles, 
+  Edit3, 
+  Trash2, 
+  LayoutDashboard, 
+  Zap, 
+  History, 
+  FileText,
+  Home,
+  ShieldAlert 
+} from "lucide-react";
+
 import { getMyProperties, deleteProperty } from "../services/propertyService";
 import { getFavorites } from "../services/favoriteServices"; 
 import Navbar from "@/components/home/Navbar"; 
+import AdminSettingsDashboard from './AdminSettingsDashboard'; 
+
 
 const DashboardPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  
+  // 👑 CORE CONTENT VIEW SWITCHER (Defaults to your core system stats view)
+  const [activeTab, setActiveTab] = useState('overview');
+  const userRole = localStorage.getItem('user_role') || localStorage.getItem('role') || 'user';
+
   const [properties, setProperties] = useState([]);
   const [favCount, setFavCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -14,6 +35,16 @@ const DashboardPage = () => {
   // 🎯 PAGINATION STATE HOOK LOGIC (3x3 Grid Split System)
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 9; 
+
+  // 👑 RUNTIME LISTENER: Detect and catch URL ?tab=matrix routing parameter events
+  useEffect(() => {
+    const currentUrlTabValue = searchParams.get('tab');
+    if (currentUrlTabValue === 'matrix') {
+      setActiveTab('site-matrix');
+    } else {
+      setActiveTab('overview');
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const fetchDashboardStatsData = async () => {
@@ -277,32 +308,47 @@ const DashboardPage = () => {
             )}
           </div>
 
-          {/* 📄 RIGHT COLUMN PANEL: QUICK ACTIONS & TIMELINE SIDEBAR */}
-          <div className="lg:col-span-4 space-y-6 w-full text-left">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl p-6 shadow-sm">
-              <div className="flex items-center gap-2 mb-5 border-b border-slate-100 dark:border-slate-800/60 pb-3">
-                <Zap className="w-4 h-4 text-blue-600 dark:text-blue-500" />
-                <h3 className="font-bold text-xs uppercase tracking-wider text-slate-800 dark:text-white">Quick Shortcuts</h3>
-              </div>
-              <div className="flex flex-col gap-3">
-                <Link to="/add-property" className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all shadow-md shadow-blue-600/10 text-center flex items-center justify-center h-10 border-0 cursor-pointer no-underline">
-                  + Add Property Listing
-                </Link>
-                <Link to="/search" className="w-full py-2.5 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300 font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all border border-slate-200 dark:border-slate-800 text-center flex items-center justify-center h-10 cursor-pointer no-underline">
-                  Open Search Engine
-                </Link>
+{/* 📄 RIGHT COLUMN PANEL: QUICK ACTIONS & TIMELINE SIDEBAR */}
+<div className="lg:col-span-4 space-y-6 w-full text-left">
+  <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl p-6 shadow-sm">
+    <div className="flex items-center gap-2 mb-5 border-b border-slate-100 dark:border-slate-800/60 pb-3">
+      <Zap className="w-4 h-4 text-blue-600 dark:text-blue-500" />
+      <h3 className="font-bold text-xs uppercase tracking-wider text-slate-800 dark:text-white">Quick Shortcuts</h3>
+    </div>
+    <div className="flex flex-col gap-3">
+      
+      {/* 👑 NEW ADMIN CHANNELS ACCESS POINT MODULE */}
+      {userRole === "admin" && (
+        <Link 
+          to="/dashboard?tab=matrix" 
+          className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-95 text-white font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all shadow-md text-center flex items-center justify-center h-10 border-0 cursor-pointer no-underline mb-1"
+        >
+          👑 Open Admin System Matrix
+        </Link>
+      )}
 
-                <Link to="/properties" className="w-full py-2.5 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300 font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all border border-slate-200 dark:border-slate-800 text-center flex items-center justify-center h-10 cursor-pointer no-underline">
-                  View Catalog Listings
-                </Link>
-                <Link to="/favorites" className="w-full py-2.5 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300 font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all border border-slate-200 dark:border-slate-800 text-center flex items-center justify-center h-10 cursor-pointer no-underline">
-                  View Bookmarked Pool
-                </Link>
-                <Link to="/profile" className="w-full py-2.5 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300 font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all border border-slate-200 dark:border-slate-800 text-center flex items-center justify-center h-10 cursor-pointer no-underline">
-                  Configure Account Settings
-                </Link>
-              </div>
-            </div>
+      <Link to="/add-property" className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all shadow-md shadow-blue-600/10 text-center flex items-center justify-center h-10 border-0 cursor-pointer no-underline">
+        + Add Property Listing
+      </Link>
+      
+      <Link to="/search" className="w-full py-2.5 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300 font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all border border-slate-200 dark:border-slate-800 text-center flex items-center justify-center h-10 cursor-pointer no-underline">
+        Open Search Engine
+      </Link>
+
+      <Link to="/properties" className="w-full py-2.5 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300 font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all border border-slate-200 dark:border-slate-800 text-center flex items-center justify-center h-10 cursor-pointer no-underline">
+        View Catalog Listings
+      </Link>
+      
+      <Link to="/favorites" className="w-full py-2.5 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300 font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all border border-slate-200 dark:border-slate-800 text-center flex items-center justify-center h-10 cursor-pointer no-underline">
+        View Bookmarked Pool
+      </Link>
+      
+      <Link to="/profile" className="w-full py-2.5 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300 font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all border border-slate-200 dark:border-slate-800 text-center flex items-center justify-center h-10 cursor-pointer no-underline">
+        Configure Account Settings
+      </Link>
+    </div>
+  </div>
+
 
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl p-6 shadow-sm">
               <div className="flex items-center gap-2 mb-5 border-b border-slate-100 dark:border-slate-800/60 pb-3">

@@ -3,7 +3,7 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import AppRoutes from "./routes/AppRoutes";
 import "./index.css";
-import { ThemeProvider } from "./context/ThemeContext"; // Updated to your native path
+import { ThemeProvider } from "./context/ThemeContext"; 
 import { AuthProvider } from "./context/AuthContext";
 import { FavoritesProvider } from "./context/FavoritesContext";
 

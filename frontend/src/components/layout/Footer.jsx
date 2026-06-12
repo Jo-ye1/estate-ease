@@ -1,173 +1,192 @@
+import React from "react";
 import { Link } from "react-router-dom";
+import { Mail, Phone, MapPin, Heart } from "lucide-react"; 
 
 export default function Footer() {
-  const currentYearDate = new Date().getFullYear();
+  const currentYear = new Date().getFullYear();
+
+  // 🎯 FIXED LOGOS: Replaced text shortcuts with raw, ultra-clean vector SVG graphics
+  const socialLinks = [
+    {
+      url: "https://facebook.com",
+      icon: (
+        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path fillRule="evenodd" d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z" clipRule="evenodd" />
+        </svg>
+      )
+    },
+    {
+      url: "https://linkedin.com",
+      icon: (
+        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path fillRule="evenodd" d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" clipRule="evenodd" />
+        </svg>
+      )
+    },
+    {
+      url: "https://twitter.com",
+      icon: (
+        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+        </svg>
+      )
+    },
+    {
+      url: "https://instagram.com",
+      icon: (
+        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path fillRule="evenodd" d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.051.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" clipRule="evenodd" />
+        </svg>
+      )
+    }
+  ];  const aboutLinks = [
+    { label: "How It Works", path: "/about" },
+    { label: "Customers", path: "/review" },
+    { label: "Our Story", path: "/about" },
+    { label: "Career", path: "/contact?purpose=career" }, // 🎯 FIXED: Directs straight to the Careers Form setup
+    { label: "Contact Us", path: "/contact?purpose=general" }, // 🎯 FIXED: Directs to General Support Form setup
+    { label: "FAQs", path: "/faqs" } // 🎯 FIXED: Connected to the new dedicated Interactive FAQPage
+  ];
+
+  const supportLinks = [
+    { label: "Questions", path: "/contact?purpose=questions" }, // 🎯 FIXED: Directs straight to the Questions Form query state
+    { label: "Helping Center", path: "/contact?purpose=help" }, // 🎯 FIXED: Directs straight to the Technical Help Form query state
+    { label: "Privacy Policy", path: "/terms-policy" }, // 🎯 FIXED: Connected to the new structural legal TermsPage hub
+    { label: "Buy or Rent", path: "/properties" },
+    { label: "Properties", path: "/properties" },
+    { label: "Blogs", path: "/blog" }
+    
+  ];
+
 
   return (
-    // 🎯 GLOBAL BACKGROUND BACKDROP PANEL
-    <footer className="w-full bg-[#f8fafc] dark:bg-slate-950 border-t border-slate-200/60 dark:border-slate-900/60 pt-14 pb-4 select-none text-left transition-colors duration-200 relative overflow-hidden mx-auto flex flex-col justify-between">
-      
-      {/* 📷 BACKGROUND WORLD MAP VECTOR WATERMARK */}
-      <div className="absolute inset-0 z-0 flex items-center justify-center pointer-events-none select-none opacity-[0.06] dark:opacity-[0.02]">
-        <svg 
-          viewBox="0 0 1000 400" 
-          className="w-full h-full object-cover fill-slate-400 dark:fill-white min-w-[1024px]"
-          xmlns="http://w3.org"
-        >
-          <path d="M100,60 h40 v20 h-20 v10 h-20 z M120,90 h30 v30 h-10 v10 h-30 v-20 h10 z M80,80 h30 v20 h-30 z M180,70 h50 v40 h-20 v20 h-40 v-30 h10 z" />
-          <path d="M220,180 h40 v40 h-20 v50 h-15 v-40 h-10 v-30 h5 z M250,220 h30 v30 h-20 v30 h-10 z" />
-          <path d="M460,160 h60 v30 h-20 v40 h-30 v30 h-20 v-40 h10 v-40 h5 z M490,200 h40 v50 h-30 v30 h-20 v-30 h10 z" />
-          <path d="M450,70 h50 v40 h-30 v20 h-40 v-30 h20 z M420,90 h40 v20 h-40 z" />
-          <path d="M520,60 h160 v50 h-40 v30 h-30 v20 h-40 v-40 h-20 v-30 h-30 z M600,120 h80 v60 h-40 v30 h-60 v-30 h20 z M700,90 h50 v40 h-30 v30 h-40 v-40 h20 z" />
-          <path d="M780,240 h50 v30 h-20 v20 h-30 v-30 h-10 z M820,260 h30 v20 h-30 z" />
-          <circle cx="340" cy="120" r="6" /><circle cx="360" cy="150" r="4" /><circle cx="410" cy="80" r="5" />
-          <circle cx="720" cy="210" r="8" /><circle cx="750" cy="180" r="5" /><circle cx="160" cy="220" r="6" />
-        </svg>
-      </div>
-
-      {/* 🎯 SPEC FIXED WRAPPER CONTAINER: Changed px-24 to max-w-[1320px] and px-4 to match the page margins perfectly! */}
-      <div className="w-full max-w-[1320px] mx-auto px-4 relative z-10 flex-1 flex flex-col justify-between">
+    <footer className="w-full bg-white dark:bg-slate-950 border-t border-slate-100 dark:border-slate-900 select-none text-left transition-colors duration-200">
+      <div className="max-w-[1320px] mx-auto px-4 pt-16 pb-8">
         
-        {/* 📊 THE RESPONISVE 4-COLUMN HIERARCHY MATRIX */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-12 gap-y-10 items-start pt-4 pb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10 lg:gap-8 pb-16 w-full">
           
-          {/* COLUMN 1: BRAND PLATFORM & SOLID SOCIAL CARD GRID */}
-          <div className="flex flex-col justify-start max-w-[312px]">
-            <div className="flex items-center gap-2.5 text-[21px] font-black text-blue-600 dark:text-blue-500 tracking-tight">
-              <span className="text-2xl select-none leading-none mt-[-2px]">🏠</span>
-              <span className="tracking-tight font-black text-blue-600 dark:text-blue-500 text-base uppercase">Estate Ease</span>
-            </div>
+          {/* COLUMN 1: CORPORATE LOGO & BRAND IDENTITY */}
+          <div className="lg:col-span-4 flex flex-col justify-start text-left max-w-[320px]">
+            <Link to="/" className="text-base font-black flex items-center gap-1.5 select-none border-0 leading-none">
+              <span className="text-xl select-none leading-none mt-[-2px]">🏠</span>
+              <span className="uppercase tracking-wider font-extrabold text-blue-600 dark:text-blue-500">EstateEase</span>
+            </Link>
             
-            <p className="text-[11.5px] font-medium text-slate-400 dark:text-slate-500 mt-4 leading-[1.6] tracking-wide text-left">
-              Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit sed consequuntur magni dolores eos qui ratione.
+            <p className="text-slate-400 dark:text-slate-500 text-xs font-medium leading-relaxed mt-5">
+              Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit sed quia consequuntur magni dolores eos qui ratione.
             </p>
-
-            <h4 className="text-[11px] font-black text-slate-700 dark:text-slate-300 tracking-tight uppercase mt-6 mb-3 leading-none">
-              Follow Us
-            </h4>
             
-            <div className="flex items-center gap-2">
-              {[
-                { path: "M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" },
-                { path: "M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z", isIg: true },
-                { path: "M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z" },
-                { path: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" }
-              ].map((social, index) => (
-                <a 
-                  key={index} 
-                  href="#" 
-                  className="w-7 h-7 bg-slate-200/50 hover:bg-[#0b4fb9] dark:bg-slate-900 dark:hover:bg-blue-600 text-slate-400 dark:text-slate-500 hover:text-white rounded-[4px] flex items-center justify-center transition-all duration-200 shadow-sm border border-transparent dark:border-slate-800/40"
-                >
-                  <svg viewBox="0 0 24 24" width="11" height="11" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
-                    {social.isIg && <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />}
-                    <path d={social.path} />
-                  </svg>
-                </a>
-              ))}
+            <div className="mt-6 flex flex-col gap-2.5">
+              <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-800 dark:text-slate-200">Follow Us</h4>
+              <div className="flex items-center gap-2">
+                {socialLinks.map((soc, idx) => (
+                  <a 
+                    key={idx}
+                    href={soc.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-blue-50 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-800 text-slate-400 hover:text-blue-600 dark:text-slate-500 dark:hover:text-blue-400 flex items-center justify-center transition-colors cursor-pointer"
+                  >
+                    {soc.icon}
+                  </a>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* COLUMN 2: ABOUT US LINKS */}
-          <div className="flex flex-col justify-start w-full max-w-[108px] lg:mx-auto">
-            <h3 className="font-black text-slate-800 dark:text-white mb-5 text-[13px] tracking-tight leading-none">
+          {/* COLUMN 2: ABOUT LINK DIRECTORY HUB */}
+          <div className="lg:col-span-2 flex flex-col justify-start text-left">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-white mb-5 leading-none">
               About Us
             </h3>
-            <ul className="space-y-3 text-[11px] text-slate-400 dark:text-slate-500 font-semibold tracking-wide">
-              <li className="flex items-center gap-1.5 text-[#0b4fb9] dark:text-blue-400 font-bold leading-none">
-                <span className="text-[8px] leading-none select-none -mt-[1px]">▪▪</span>
-                <Link to="/how-it-works" className="hover:underline">How It Work</Link>
-              </li>
-              <li className="leading-none"><Link to="/customers" className="hover:text-[#0b4fb9] dark:hover:text-blue-400 transition-colors">Customers</Link></li>
-              <li className="leading-none"><Link to="/our-story" className="hover:text-[#0b4fb9] dark:hover:text-blue-400 transition-colors">Our Story</Link></li>
-              <li className="leading-none"><Link to="/careers" className="hover:text-[#0b4fb9] dark:hover:text-blue-400 transition-colors">Career</Link></li>
-              <li className="leading-none"><Link to="/contact" className="hover:text-[#0b4fb9] dark:hover:text-blue-400 transition-colors">Contact Us</Link></li>
-              <li className="leading-none"><Link to="/faqs" className="hover:text-[#0b4fb9] dark:hover:text-blue-400 transition-colors">FAQs</Link></li>
+            <ul className="space-y-3 list-none pl-0 mt-0 text-xs font-semibold">
+              {aboutLinks.map((link, idx) => (
+                <li key={idx}>
+                  <Link 
+                    to={link.path} 
+                    className={`transition-colors duration-150 block w-max ${
+                      idx === 0 
+                        ? "text-blue-600 dark:text-blue-400 font-extrabold" 
+                        : "text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200"
+                    }`}
+                  >
+                    {idx === 0 ? `• ${link.label}` : link.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
-          {/* COLUMN 3: SUPPORT & SUMMARY LINKS */}
-          <div className="flex flex-col justify-start w-full max-w-[196px] lg:mx-auto">
-            <h3 className="font-black text-slate-800 dark:text-white mb-5 text-[13px] tracking-tight leading-none">
+          {/* COLUMN 3: SUPPORT LINK DIRECTORY HUB */}
+          <div className="lg:col-span-2 flex flex-col justify-start text-left">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-white mb-5 leading-none">
               Support & Summary
             </h3>
-            <ul className="space-y-3 text-[11px] text-slate-400 dark:text-slate-500 font-semibold tracking-wide">
-              <li className="leading-none"><Link to="/question" className="hover:text-[#0b4fb9] dark:hover:text-blue-400 transition-colors">Question</Link></li>
-              <li className="leading-none"><Link to="/help-center" className="hover:text-[#0b4fb9] dark:hover:text-blue-400 transition-colors">Helping Center</Link></li>
-              <li className="leading-none"><Link to="/privacy" className="hover:text-[#0b4fb9] dark:hover:text-blue-400 transition-colors">Privacy & Policy</Link></li>
-              <li className="leading-none"><Link to="/buy-or-rent" className="hover:text-[#0b4fb9] dark:hover:text-blue-400 transition-colors">Buy or Rent</Link></li>
-              <li className="leading-none"><Link to="/properties" className="hover:text-[#0b4fb9] dark:hover:text-blue-400 transition-colors">Properties</Link></li>
-              <li className="leading-none"><Link to="/blogs" className="hover:text-[#0b4fb9] dark:hover:text-blue-400 transition-colors">Blogs</Link></li>
+            <ul className="space-y-3 list-none pl-0 mt-0 text-xs font-semibold text-slate-400 dark:text-slate-500">
+              {supportLinks.map((link, idx) => (
+                <li key={idx}>
+                  <Link to={link.path} className="hover:text-slate-700 dark:hover:text-slate-200 transition-colors block w-max">
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
-          {/* COLUMN 4: MEDIA CONTACT DETAILS */}
-          <div className="flex flex-col justify-start w-full max-w-[259px] lg:ml-auto">
-            <h3 className="font-black text-slate-800 dark:text-white mb-5 text-[13px] tracking-tight leading-none">
+          {/* COLUMN 4: DIRECT CONTACT INFORMATION METADATA CHIPS */}
+          <div className="lg:col-span-4 flex flex-col justify-start text-left space-y-4 w-full">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-white mb-1 leading-none">
               Contact Us
             </h3>
             
-            <div className="space-y-4 text-slate-500 dark:text-slate-400 text-left w-full">
-              <div className="flex items-start gap-3">
-                <div className="w-[26px] h-[26px] rounded-full bg-blue-100/60 dark:bg-slate-900 border border-blue-50/20 dark:border-slate-800 flex items-center justify-center text-[#0b4fb9] dark:text-blue-400 shrink-0 mt-0.5">
-                  <svg viewBox="0 0 24 24" width="11" height="11" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                    <polyline points="22,6 12,13 2,6" />
-                  </svg>
-                </div>
-                <div className="flex flex-col min-w-0 justify-center">
-                  <span className="text-[11px] font-black text-slate-700 dark:text-slate-300 leading-none">E-mail</span>
-                  <a href="mailto:youremailid@gmail.com" className="text-[10.5px] font-semibold text-slate-400 dark:text-slate-500 mt-1 hover:text-[#0b4fb9] leading-none">
-                    youremailid@gmail.com
-                  </a>
-                </div>
+            <div className="flex items-start gap-4 w-full max-w-[340px]">
+              <div className="w-8 h-8 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex items-center justify-center rounded-lg text-blue-600 dark:text-blue-400 shrink-0 shadow-xs">
+                <Mail className="w-3.5 h-3.5" />
               </div>
-              {/* Card Row 2: Phone call trigger channel details */}
-              <div className="flex items-start gap-3">
-                <div className="w-[26px] h-[26px] rounded-full bg-blue-100/60 dark:bg-slate-900 border border-blue-50/20 dark:border-slate-800 flex items-center justify-center text-[#0b4fb9] dark:text-blue-400 shrink-0 mt-0.5">
-                  <svg viewBox="0 0 24 24" width="11" height="11" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-                  </svg>
-                </div>
-                <div className="flex flex-col min-w-0 justify-center">
-                  <span className="text-[11px] font-black text-slate-700 dark:text-slate-300 leading-none">Contact</span>
-                  <span className="text-[10.5px] font-semibold text-slate-400 dark:text-slate-500 mt-1 leading-none">
-                    (+01) 123 456 7890
-                  </span>
-                </div>
+              <div className="min-w-0">
+                <h5 className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-wide leading-none mb-1">E-mail</h5>
+                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 truncate">youremailid@gmail.com</p>
               </div>
+            </div>
 
-              {/* Card Row 3: Physical headquarters location data maps */}
-              <div className="flex items-start gap-3">
-                <div className="w-[26px] h-[26px] rounded-full bg-blue-100/60 dark:bg-slate-900 border border-blue-50/20 dark:border-slate-800 flex items-center justify-center text-[#0b4fb9] dark:text-blue-400 shrink-0 mt-0.5">
-                  <svg viewBox="0 0 24 24" width="11" height="11" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                    <circle cx="12" cy="10" r="3" />
-                  </svg>
-                </div>
-                <div className="flex flex-col min-w-0 justify-center">
-                  <span className="text-[11px] font-black text-slate-700 dark:text-slate-300 leading-none">Location</span>
-                  <p className="text-[10.5px] font-semibold text-slate-400 dark:text-slate-500 mt-1 leading-normal max-w-[190px]">
-                    3012 Pine Garden Lane Atlanta, Boulevard, GA 30328
-                  </p>
-                </div>
+            <div className="flex items-start gap-4 w-full max-w-[340px]">
+              <div className="w-8 h-8 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex items-center justify-center rounded-lg text-blue-600 dark:text-blue-400 shrink-0 shadow-xs">
+                <Phone className="w-3.5 h-3.5" />
               </div>
+              <div className="min-w-0">
+                <h5 className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-wide leading-none mb-1">Contact</h5>
+                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 truncate">(+01) 123 456 7890</p>
+              </div>
+            </div>
 
-            </div> {/* Closes layout space wrapper holding contact rows */}
-          </div> {/* Closes Column 4 grid frame */}
-
-        </div> {/* Closes core responsive grid row */}
-
-        {/* LOWER COPYRIGHT AND LEGAL BAR */}
-        <div className="w-full pt-4 mt-8 border-t border-slate-200/60 dark:border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] font-bold text-slate-400 dark:text-slate-600 tracking-wide select-none">
-          <div className="leading-none">
-            Copyright © {currentYearDate} Estate Ease. Crafted with <span className="text-red-500 animate-pulse">❤</span>
+            <div className="flex items-start gap-4 w-full max-w-[340px]">
+              <div className="w-8 h-8 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex items-center justify-center rounded-lg text-blue-600 dark:text-blue-400 shrink-0 shadow-xs">
+                <MapPin className="w-3.5 h-3.5" />
+              </div>
+              <div className="min-w-0 text-left">
+                <h5 className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-wide leading-none mb-1">Location</h5>
+                <p className="text-xs font-medium text-slate-400 dark:text-slate-500 leading-relaxed tracking-wide">
+                  3012 Pine Garden Lane Atlanta, <br />
+                  Boulevard, GA 30328
+                </p>
+              </div>
+            </div>
           </div>
-          <Link to="/terms" className="hover:text-[#0b4fb9] dark:hover:text-blue-400 transition-colors leading-none">
-            Term Condition & Policy
-          </Link>
+
         </div>
 
-      </div> {/* Closes unified 1320px bounding margin wrapper */}
+                {/* LOWER FOOTER END SIGNATURE TRACK */}
+        <div className="border-t border-slate-100 dark:border-slate-900 pt-8 mt-4 flex flex-col sm:flex-row items-center justify-between gap-4 w-full text-xs font-bold text-slate-400 dark:text-slate-500">
+          <div className="flex items-center gap-1 leading-none">
+            <span>Copyright &copy; {currentYear} Estate Ease. Crafted with</span>
+            <Heart className="w-3 h-3 text-red-500 fill-red-500 shrink-0 animate-pulse" />
+          </div>
+          <div className="flex items-center gap-5 leading-none">
+            <Link to="/about" className="hover:text-slate-600 dark:hover:text-slate-300 transition-colors">Term Condition & Policy</Link>
+          </div>
+        </div>
+
+      </div>
     </footer>
   );
 }

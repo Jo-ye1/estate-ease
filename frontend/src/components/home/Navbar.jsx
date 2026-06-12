@@ -4,36 +4,92 @@ import { Sun, Moon, User as UserIcon, Heart, Layout, PlusCircle, Settings, LogOu
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 
+
 export default function Navbar() {
-  const { token, logout, user } = useAuth();
-  const { theme, toggleTheme } = useTheme();
+  // ⚙️ Core Router & Reference Workspace States Hooks
   const navigate = useNavigate();
-  const location = useLocation(); // 🎯 FIXED: Instant route state reading hook
+  const location = useLocation(); // 👈 Fixed: Brought back to track animated premium sliders
+  const dropdownRef = useRef(null);
   
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef(null);
 
-  // ⚡ DEEP-SCANNING NORMALIZER
-  const resolvedUserObj = user?.user ? user.user : user;
+  // 🎨 FIXED THEME MATRICES INTERFACES HOOKS
+  // Adjust these state keys if your project uses a custom ThemeContext layout instead!
+  const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light");
+
+  const toggleTheme = () => {
+    const nextTheme = theme === "light" ? "dark" : "light";
+    setTheme(nextTheme);
+    localStorage.setItem("theme", nextTheme);
+    
+    // Updates the global HTML document class node so Tailwind dark variants paint natively
+    if (nextTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  };
+
+  // Sync theme system selectors settings on initial load mount
+  useEffect(() => {
+    if (theme === "dark" || localStorage.getItem("theme") === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [theme]);
+
+  // 👑 AUTH STATE RESOLUTION INDEXES: Evaluates instantly during every dynamic render cycle
+  const token = localStorage.getItem("token");
   
-  let detectedRole = resolvedUserObj?.role 
-    ? String(resolvedUserObj.role).toLowerCase().trim() 
-    : user?.role 
-      ? String(user.role).toLowerCase().trim() 
-      : "user";
+  const currentSessionUser = (() => {
+    try {
+      const savedUser = localStorage.getItem("user");
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch (e) {
+      return null;
+    }
+  })();
 
-  const displayUserName = resolvedUserObj?.name || user?.name || "User Account";
-  const displayUserEmail = resolvedUserObj?.email || user?.email || "";
+  // 👑 DYNAMIC ACC-SPACE AVATAR RESOLVER: Wipes out profile pic data leaks across separate individual accounts
+  const profileAvatarSrc = (() => {
+    if (!currentSessionUser) return "";
+    const userId = currentSessionUser._id || currentSessionUser.id || "guest_sync";
+    const dbAvatar = currentSessionUser?.avatar || currentSessionUser?.profilePic || currentSessionUser?.image || "";
+    
+    if (dbAvatar && dbAvatar.trim() !== "") {
+      const isAbsolute = dbAvatar.startsWith("http:") || dbAvatar.startsWith("https:") || dbAvatar.startsWith("data:") || dbAvatar.startsWith("blob:");
+      return isAbsolute ? dbAvatar : `http://localhost:5000${dbAvatar}`;
+    }
+    
+    // Pulls strictly from this specific user ID's isolated local string cache
+    return localStorage.getItem(`user_profile_pic_${userId}`) || "";
+  })();
 
-  // 👑 MASTER ROOT ACCESS OVERRIDE BYPASS ENGINE:
-  if (displayUserEmail.toLowerCase().trim() === "1234567890@gmail.com") {
-    detectedRole = "admin";
-  }
+  // 👑 RE-HYDRATED SECURED LOGOUT ACTION: Flushes current active account variables perfectly
+  const handleLogoutActionExecution = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    setDropdownOpen(false);
+    navigate("/login");
+  };
 
-  const userRole = detectedRole;
+  const displayUserName = currentSessionUser?.name || "User Account";
+  const displayUserEmail = currentSessionUser?.email || "user@example.com";
   const firstInitial = displayUserName.charAt(0).toUpperCase();
-  const profileAvatarSrc = resolvedUserObj?.avatar || user?.avatar || "";
 
+  // 👑 DYNAMIC ROLE SPACE RESOLVER: Pulls strictly from this user's specific account ID node
+  const userRole = (() => {
+    if (!currentSessionUser) return "user";
+    const userId = currentSessionUser._id || currentSessionUser.id || "guest_sync";
+    
+    // Master-guard safety checkpoint override for your absolute administrator account
+    if (currentSessionUser?.email === "1234567890@gmail.com") return "admin";
+    
+    return currentSessionUser?.role || localStorage.getItem(`user_role_${userId}`) || "user";
+  })();
+
+  // --- Click Outside Component Listener Window Hooks Loop ---
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -47,9 +103,9 @@ export default function Navbar() {
   // 🎯 ACTIVE ROUTE CONDITION HELPER CHECKS
   const isActiveRoute = (path) => location.pathname === path;
 
+
   return (
     <header className="sticky top-0 z-50 bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-900/60 w-full select-none transition-colors duration-200">
-      
       {/* 🎯 FIXED WRAPPER MATRIX */}
       <div className="w-full max-w-[1320px] mx-auto px-4">
         <div className="h-[70px] flex items-center justify-between relative">
@@ -109,7 +165,7 @@ export default function Navbar() {
                 {isActiveRoute("/favorites") && <div className="absolute bottom-[-14px] left-0 w-full h-[3px] bg-red-500 rounded-full animate-in fade-in zoom-in-75 duration-200" />}
               </div>
             )}
-          </nav>   
+          </nav>
 
           {/* RIGHT CONTROLS GROUP */}
           <div className="flex items-center gap-4 justify-end shrink-0" ref={dropdownRef}>
@@ -138,48 +194,106 @@ export default function Navbar() {
                   )}
                 </button>
 
-                {dropdownOpen && (
-                  <div className="absolute right-0 top-12 w-56 mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl py-2 z-50 text-sm animate-in fade-in duration-100">
-                    <div className="px-4 py-2.5 border-b border-slate-100 dark:border-slate-800/60 mb-1">
-                      <p className="font-bold text-slate-900 dark:text-white truncate">{displayUserName}</p>
-                      <p className="text-xs text-slate-400 truncate mt-0.5">{displayUserEmail}</p>
-                    </div>
+{dropdownOpen && (
+  <div className="absolute right-0 top-12 w-56 mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl py-2 z-50 text-sm animate-in fade-in duration-100">
+    <div className="px-4 py-2.5 border-b border-slate-100 dark:border-slate-800/60 mb-1">
+      <p className="font-bold text-slate-900 dark:text-white truncate">{displayUserName}</p>
+      <p className="text-xs text-slate-400 truncate mt-0.5">{displayUserEmail}</p>
+    </div>
 
-                    <Link to="/profile" onClick={() => setDropdownOpen(false)} className="block px-4 py-2.5 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-colors">
-                      👤 My Profile Settings
-                    </Link>
-                    <Link to="/favorites" onClick={() => setDropdownOpen(false)} className="block px-4 py-2.5 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-colors">
-                      ❤️ Bookmarked Favorites
-                    </Link>
+    <Link to="/profile" onClick={() => setDropdownOpen(false)} className="block px-4 py-2.5 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-colors no-underline">
+      👤 My Profile Settings
+    </Link>
+    
+    <Link to="/favorites" onClick={() => setDropdownOpen(false)} className="block px-4 py-2.5 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-colors no-underline">
+      ❤️ Bookmarked Favorites
+    </Link>
+{/* 🏢 1. SELLER DASHBOARD: Strictly leads to your original Owner Dashboard page with the property grids */}
+{(userRole === "seller" || userRole === "broker" || userRole === "admin") && (
+  <Link 
+    to="/dashboard" 
+    onClick={() => setDropdownOpen(false)} 
+    className="block px-4 py-2.5 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-colors no-underline"
+  >
+    🏢 Seller Dashboard
+  </Link>
+)}
 
-                    {(userRole === "seller" || userRole === "broker" || userRole === "admin") && (
-                      <>
-                        <Link to="/dashboard" onClick={() => setDropdownOpen(false)} className="block px-4 py-2.5 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-colors border-t border-slate-100 dark:border-slate-800/60">
-                          🏢 Seller Dashboard
-                        </Link>
-                        <Link to="/add-property" onClick={() => setDropdownOpen(false)} className="block px-4 py-2.5 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-colors">
-                          ➕ Add Property Listing
-                        </Link>
-                      </>
-                    )}
 
-                    {userRole === "admin" && (
-                      <Link to="/admin-dashboard" onClick={() => setDropdownOpen(false)} className="block px-4 py-2.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-800 font-bold transition-colors border-t border-slate-100 dark:border-slate-800/60">
-                        👑 Admin System Matrix
-                      </Link>
-                    )}
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDropdownOpen(false);
-                        logout();
-                        navigate("/");
-                      }}
-                      className="w-full text-left px-4 py-2.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 font-bold transition-colors border-t border-slate-100 dark:border-slate-800/60 bg-transparent border-0 cursor-pointer"
-                    >
-                      🚪 Log Out Account
-                    </button>
+{/* ➕ 2. ADD PROPERTY LISTING: Directly opens your listing submission view forms */}
+{(userRole === "seller" || userRole === "broker" || userRole === "admin") && (
+  <Link 
+    to="/add-property" 
+    onClick={() => setDropdownOpen(false)} 
+    className="block px-4 py-2.5 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-colors no-underline"
+  >
+    ➕ Add Property Listing
+  </Link>
+)}
+
+{/* =========================================================
+    ADMIN ONLY COMMAND CENTERS (Expanded to 7 Total Items)
+   ========================================================= */}
+
+{userRole === "admin" && (
+  <>
+    {/* 👑 Admin System Matrix -> Goes strictly to AdminDashboardPage user profile lists */}
+    <Link 
+      to="/admin-dashboard" 
+      onClick={() => setDropdownOpen(false)} 
+      className="block px-4 py-2.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-800 font-bold transition-colors border-t border-slate-100 dark:border-slate-800/60 no-underline"
+    >
+      👑 Admin System Matrix
+    </Link>
+
+
+{/* ⚙️ Global Matrix Settings -> Goes strictly to MatrixSettingsPage CMS tabs */}
+    <Link 
+      to="/admin/matrix-settings" 
+      onClick={() => setDropdownOpen(false)} 
+      className="block px-4 py-2.5 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold transition-colors border-t border-slate-100 dark:border-slate-800/60 no-underline"
+    >
+      ⚙️ Global Matrix Settings
+    </Link>
+
+    
+  </>
+)}
+
+{/* 🚪 Item 7: Your Standard Log Out Button Action Link Element */}
+{/* 🚪 Item 7: Fully Functional Session Flushing Log Out Element */}
+<button
+  type="button"
+  onClick={() => {
+    // 1. Immediately wipe out active session tracking metrics keys
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("user_role");
+    // Leave localStorage.removeItem("user_profile_pic") untouched if you want avatars cached!
+
+    // 2. Clear state pointers and turn off dropdown frame viewport portal
+    setDropdownOpen(false);
+
+    // 3. Call your global auth function if you use one (e.g., logout() from AuthContext)
+    if (typeof logout === "function") {
+      logout();
+    }
+
+    // 4. Force a clean system routing jump straight back onto your public entry point
+    // Ensure const navigate = useNavigate(); is declared up top inside your Navbar function!
+    if (typeof navigate === "function") {
+      navigate("/login");
+    } else {
+      window.location.href = "/login"; // Hard fallback redirect loop if hook is missing
+    }
+  }}
+  className="w-full text-left px-4 py-2.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 font-bold transition-colors border-t border-slate-100 dark:border-slate-800/60 no-underline cursor-pointer bg-transparent border-0 outline-none font-sans text-sm"
+>
+  🚪 Log Out Account
+</button>
+
+
                   </div>
                 )}
               </div>

@@ -12,11 +12,17 @@ import ProfilePage from "@/pages/ProfilePage";
 import AddPropertyPage from "@/pages/AddPropertyPage"; 
 import EditPropertyPage from "@/pages/EditPropertyPage"; 
 import SearchPage from "@/pages/SearchPage"; 
-import AdminDashboardPage from "@/pages/AdminDashboardPage"; 
+// Add or uncomment this line inside src/routes/AppRoutes.jsx
+import AdminDashboardPage from "@/pages/AdminDashboardPage";
 import ContactPage from "@/pages/ContactPage";
 import BlogPage from "@/pages/BlogPage";
 import AboutPage from "@/pages/AboutPage";
-import ReviewsPage from "@/pages/ReviewsPage"; // 🎯 FIXED: Clean, singular import from your new pages directory
+import ReviewsPage from "@/pages/ReviewsPage"; 
+import FAQPage from "@/pages/FAQPage";
+import TermsPage from "@/pages/TermsPage";
+
+// 👑 1. Import your matching page name (MatrixSettingPage)
+import MatrixSettingsPage from '@/pages/MatrixSettingPage'; 
 
 export default function AppRoutes() {
   return (
@@ -31,17 +37,17 @@ export default function AppRoutes() {
       <Route path="/properties/:id" element={<PropertyDetailsPage />} />
       <Route path="/search" element={<SearchPage />} /> 
       <Route path="/about" element={<AboutPage />} />
-      
-      {/* 🎯 FIXED ROUTE: Mounts your new ReviewsPage component at the requested /review path */}
+      <Route path="/faqs" element={<FAQPage />} />
+      <Route path="/terms-policy" element={<TermsPage />} />
       <Route path="/review" element={<ReviewsPage />} /> 
-      
       <Route path="/blog" element={<BlogPage />} />
+      <Route path="/contact" element={<ContactPage />} />
 
       {/* =========================================================
           PROTECTED PRIVATE ROUTES LAYER BOUNDARIES
          ========================================================= */}
       
-      {/* 👤 Profile Path (Normal buyers view their own profile/bookmarks here) */}
+      {/* 👤 Profile Settings View */}
       <Route 
         path="/profile" 
         element={
@@ -51,7 +57,7 @@ export default function AppRoutes() {
         } 
       />
 
-      {/* ❤️ Favorites/Bookmarks Page Protection */}
+      {/* ❤️ Favorites/Bookmarks Page */}
       <Route 
         path="/favorites" 
         element={
@@ -61,7 +67,7 @@ export default function AppRoutes() {
         } 
       />
       
-      {/* 📊 Broker Dashboard (Restricted from basic buyers) */}
+      {/* 🏢 1. Property Owner & Seller listings metrics layout dashboard */}
       <Route 
         path="/dashboard" 
         element={
@@ -71,7 +77,7 @@ export default function AppRoutes() {
         } 
       />
       
-      {/* ➕ Create Listing Path */}
+      {/* ➕ Create Listing form path workspace */}
       <Route 
         path="/add-property" 
         element={
@@ -81,7 +87,7 @@ export default function AppRoutes() {
         } 
       />
 
-      {/* 🛠️ Edit Listing Path (Role validation added safely here) */}
+      {/* 🛠️ Edit Listing values metadata parameters forms */}
       <Route 
         path="/edit-property/:id" 
         element={
@@ -91,7 +97,7 @@ export default function AppRoutes() {
         } 
       />
 
-      {/* 👑 MASTER ADMIN SYSTEM CONTROL MATRIX PROTECTION GUARD PATH */}
+      {/* 👑 2. Admin User Accounts Manager Profiles Dashboard */}
       <Route 
         path="/admin-dashboard" 
         element={
@@ -101,9 +107,14 @@ export default function AppRoutes() {
         } 
       />
 
-      <Route
-        path="/contact"
-        element={<ContactPage />}
+      {/* ⚙️ 3. Admin Content System Matrix Settings Tabs View Page */}
+      <Route 
+        path="/admin/matrix-settings" 
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <MatrixSettingsPage />
+          </ProtectedRoute>
+        } 
       />
 
       {/* =========================================================
