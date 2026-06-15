@@ -2,34 +2,52 @@ import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import generateToken from "../utils/generateToken.js";
 
-// @desc    Register a new user
-// @route   POST /api/auth/register
+const formatUser = (user) => ({
+  _id: user._id,
+  name: user.name,
+  email: user.email,
+  avatar: user.avatar || "",
+  role: user.role || "user",
+  phone: user.phone || "",
+  favorites: user.favorites || [],
+});
+
 export const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    const userExists = await User.findOne({ email });
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        message: "All fields are required",
+      });
+    }
 
-    if (userExists) {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const existingUser = await User.findOne({
+      email: normalizedEmail,
+    });
+
+    if (existingUser) {
       return res.status(400).json({
         message: "User already exists",
       });
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await User.create({
-      name,
-      email,
+      name: name.trim(),
+      email: normalizedEmail,
       password: hashedPassword,
+      role: "user",
     });
 
+    const token = generateToken(user._id);
+
     res.status(201).json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      token: generateToken(user._id),
+      token,
+      user: formatUser(user),
     });
   } catch (error) {
     res.status(500).json({
@@ -38,28 +56,38 @@ export const registerUser = async (req, res) => {
   }
 };
 
-// @desc    Authenticate user & get token
-// @route   POST /api/auth/login
 export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
+    const normalizedEmail = email.trim().toLowerCase();
 
-    if (
-      user &&
-      (await bcrypt.compare(password, user.password))
-    ) {
-      return res.json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        token: generateToken(user._id),
+    const user = await User.findOne({
+      email: normalizedEmail,
+    });
+
+    if (!user || !user.password) {
+      return res.status(401).json({
+        message: "Invalid credentials",
       });
     }
 
-    res.status(401).json({
-      message: "Invalid credentials",
+    const isPasswordValid = await bcrypt.compare(
+      password,
+      user.password
+    );
+
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        message: "Invalid credentials",
+      });
+    }
+
+    const token = generateToken(user._id);
+
+    res.json({
+      token,
+      user: formatUser(user),
     });
   } catch (error) {
     res.status(500).json({
@@ -68,14 +96,16 @@ export const loginUser = async (req, res) => {
   }
 };
 
-// @desc    Fetch currently authenticated user profile
-// @route   GET /api/auth/me
 export const getMe = async (req, res) => {
-  res.json(req.user);
+  try {
+    res.json(formatUser(req.user));
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
 };
 
-// @desc    Update authenticated user profile details
-// @route   PUT /api/auth/profile
 export const updateProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
@@ -86,26 +116,56 @@ export const updateProfile = async (req, res) => {
       });
     }
 
-    // Assign new profile input details or fallback to current database records
     user.name = req.body.name || user.name;
-
-    // Encrypt the incoming user password securely if it was updated in the request payload
-    if (req.body.password) {
-      const salt = await bcrypt.genSalt(10);
-      user.password = await bcrypt.hash(req.body.password, salt);
-    }
+    user.avatar = req.body.avatar || user.avatar;
+    user.phone = req.body.phone || user.phone;
 
     const updatedUser = await user.save();
 
     res.json({
-      _id: updatedUser._id,
-      name: updatedUser.name,
-      email: updatedUser.email,
-      token: generateToken(updatedUser._id), // Provided so the user stays logged in after an identity swap
+      success: true,
+      user: formatUser(updatedUser),
     });
   } catch (error) {
     res.status(500).json({
       message: error.message,
+    });
+  }
+};
+
+export const socialLogin = async (req, res) => {
+  try {
+    const { name, email, avatar } = req.body;
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    let user = await User.findOne({
+      email: normalizedEmail,
+    });
+
+    let isNewUser = false;
+
+    if (!user) {
+      user = await User.create({
+        name: name || "Social User",
+        email: normalizedEmail,
+        avatar: avatar || "",
+        role: "user",
+      });
+
+      isNewUser = true;
+    }
+
+    const token = generateToken(user._id);
+
+    res.json({
+      token,
+      user: formatUser(user),
+      isNewUser,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Social login failed",
     });
   }
 };

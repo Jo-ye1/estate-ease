@@ -1,4 +1,6 @@
 import express from "express";
+import { body } from "express-validator";
+import { validate } from "../middleware/validationMiddleware.js";
 import {
   getProperties,
   getMyProperties,
@@ -8,45 +10,49 @@ import {
   createProperty,
   uploadPropertyImage,
   getRelatedProperties,
-  getStats
+  getStats,
+  updatePropertyStatus
 } from "../controllers/propertyController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import upload from "../middleware/uploadMiddleware.js";
-import { contactAgent } from "../controllers/contactController.js";
+import { createLead } from "../controllers/leadController.js";
 
 const router = express.Router();
 
-// Publicly accessible property display endpoints
 router.get("/", getProperties);
-router.get("/stats", getStats); // 👈 Positioned above dynamic parameter paths safely
-
-// Public endpoint for contacting an agent (Placed safely above dynamic/protected segments)
-router.post("/:id/contact", contactAgent);
-
+router.get("/stats", getStats);
 router.get("/my-properties", protect, getMyProperties);
 router.get("/:id", getPropertyById);
 router.get("/:id/related", getRelatedProperties);
+router.post("/:id/contact", protect, createLead);
 
-// Protected endpoints requiring a valid login token header
-router.post("/", protect, createProperty);
+
+router.post(
+  "/", 
+  protect, 
+  [
+    body("title").notEmpty(),
+    body("description").notEmpty(),
+    body("listingType").notEmpty(),
+    body("location").notEmpty(),
+  ],
+  validate,
+  createProperty
+);
+
 router.put("/:id", protect, updateProperty);
 router.delete("/:id", protect, deleteProperty);
 
-// Image uploading endpoint with inline error intercept tracking
+router.put(
+  "/:id/status",
+  protect,
+  updatePropertyStatus
+);
+
 router.post(
   "/:id/upload",
   protect,
-  (req, res, next) => {
-    upload.single("image")(req, res, (err) => {
-      if (err) {
-        console.error("🚨 DETAILED BACKEND FILE UPLOAD CRASH:", err);
-        return res.status(400).json({ 
-          message: `Upload engine failed: ${err.message}` 
-        });
-      }
-      next();
-    });
-  },
+  upload.array("images", 10), 
   uploadPropertyImage
 );
 

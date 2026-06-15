@@ -1,16 +1,56 @@
-// Inside backend/src/server.js
-import "./config/env.js"; // Loads environment keys first!
-import app from "../app.js";
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 import mongoose from "mongoose";
+import app from "../app.js";
+
+
+// Load .env
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({
+  path: path.resolve(__dirname, "../.env"),
+});
 
 const PORT = process.env.PORT || 5000;
 
-// ⚡ 1. Keep the Node.js server process alive and listening
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+// MongoDB connection events
+mongoose.connection.on("connected", () => {
+  console.log(
+    `MongoDB connected: ${mongoose.connection.host}`
+  );
 });
 
-// 📊 2. Essential Database Connection Logger
-mongoose.connection.on("connected", () => {
-  console.log(`🏠 DATABASE CONNECTED: ${mongoose.connection.host}`);
+mongoose.connection.on("error", (err) => {
+  console.error("MongoDB error:", err.message);
 });
+
+mongoose.connection.on("disconnected", () => {
+  console.log("MongoDB disconnected.");
+});
+
+const startServer = async () => {
+  try {
+    const mongoUri =
+      process.env.MONGO_URI ||
+      "mongodb://127.0.0.1:27017/estate_ease";
+
+    console.log("Connecting to MongoDB...");
+
+    await mongoose.connect(mongoUri);
+
+    app.listen(PORT, () => {
+      console.log(
+        `Estate Ease API running on port ${PORT}`
+      );
+    });
+  } catch (error) {
+    console.error(
+      `Server startup failed: ${error.message}`
+    );
+    process.exit(1);
+  }
+};
+
+startServer();

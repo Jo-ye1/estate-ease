@@ -1,27 +1,39 @@
 import { createContext, useContext, useState, useEffect } from "react";
+import api from "../lib/api";
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem("token"));
+  const [token, setToken] = useState(localStorage.getItem("token") || null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const initializeAuthSession = () => {
+    const initializeAuthSession = async () => {
       try {
-        const storedUser = localStorage.getItem("user");
         const storedToken = localStorage.getItem("token");
 
-        if (storedToken && storedUser) {
-          setToken(storedToken);
-          // Safely parse user payload context object rules
-          const parsedUser = JSON.parse(storedUser);
-          setUser(parsedUser.user ? parsedUser.user : parsedUser);
+        if (!storedToken) {
+          setLoading(false);
+          return;
         }
-      } catch (err) {
-        console.error("Auth session restore failure:", err.message);
-        localStorage.clear();
+
+        const { data } = await api.get("/auth/me");
+
+        const resolvedUser = data?.user || data;
+
+        setUser(resolvedUser);
+        setToken(storedToken);
+
+        localStorage.setItem("user", JSON.stringify(resolvedUser));
+      } catch (error) {
+        console.error("Session restore failed:", error.message);
+
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+
+        setUser(null);
+        setToken(null);
       } finally {
         setLoading(false);
       }
@@ -31,27 +43,43 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = (authData) => {
-    if (authData.token) {
-      localStorage.setItem("token", authData.token);
-      
-      // Extract accurate user document metrics safely
-      const cleanUserObj = authData.user ? authData.user : authData;
-      localStorage.setItem("user", JSON.stringify(cleanUserObj));
-      
-      setToken(authData.token);
-      setUser(cleanUserObj);
-    }
+    if (!authData?.token || !authData?.user) return;
+
+    localStorage.setItem("token", authData.token);
+    localStorage.setItem("user", JSON.stringify(authData.user));
+
+    setToken(authData.token);
+    setUser(authData.user);
+  };
+
+  const updateUser = (updatedUser) => {
+    if (!updatedUser) return;
+
+    localStorage.setItem("user", JSON.stringify(updatedUser));
+    setUser(updatedUser);
   };
 
   const logout = () => {
-    localStorage.clear();
-    setToken(null);
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+
     setUser(null);
+    setToken(null);
+
     window.location.href = "/";
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, loading }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        loading,
+        login,
+        logout,
+        updateUser,
+      }}
+    >
       {!loading && children}
     </AuthContext.Provider>
   );

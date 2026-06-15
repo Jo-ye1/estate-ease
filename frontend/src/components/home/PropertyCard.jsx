@@ -1,128 +1,174 @@
 import React from "react";
-import { Heart } from "lucide-react";
+import { Heart, MapPin, Layers } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useFavorites } from "../../context/FavoritesContext";
 
-export default function PropertyCard({ item }) {
-  const { favorites, toggleFavorite } = useFavorites();
+export default function PropertyCard({
+  item,
+  showStatusDropdown = false,
+  handleStatusChange,
+}) {
+  const { toggleFavorite, isFavorited } = useFavorites();
 
-  if (!item) {
-    return (
-      <div className="w-full max-w-[312px] h-[385px] rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 animate-pulse flex items-center justify-center text-slate-400 dark:text-slate-600 font-medium mx-auto">
-        Loading property details...
-      </div>
-    );
-  }
+  if (!item) return null;
 
-  const safeFavorites = Array.isArray(favorites) ? favorites : [];
-  const isFavorited = safeFavorites.some(
-    (fav) => (fav._id === item._id || fav.property?._id === item._id)
-  );
+  const favorited = isFavorited(item._id);
 
-  // 👑 FIXED DATA LAYER RESOLVER: Merges backend array streams and wizard base64 parameters cleanly
   const displayImage = (() => {
-    // A. Check if it's a dynamic image string from local storage wizard
-    if (item.image && typeof item.image === "string" && item.image.trim() !== "") {
-      return item.image;
+    if (!item.images) {
+      return "https://unsplash.com";
     }
-    // B. Check if it's an image string inside a backend database array
-    if (item.images && Array.isArray(item.images) && item.images.length > 0) {
-      const firstImg = item.images[0];
-      if (firstImg && firstImg.trim() !== "") {
-        return firstImg.startsWith("http") || firstImg.startsWith("data:") ? firstImg : `http://localhost:5000${firstImg}`;
-      }
+    
+    let targetImg = "";
+    if (Array.isArray(item.images) && item.images.length > 0) {
+      targetImg = item.images[0];
+    } else if (typeof item.images === "string") {
+      targetImg = item.images;
     }
-    // C. High-quality real estate stock fallback if both checks are missing or blank
-    return "https://unsplash.com";
+
+    if (!targetImg) {
+      return "https://unsplash.com";
+    }
+
+    return targetImg.startsWith("http") || targetImg.startsWith("data:")
+      ? targetImg
+      : `http://localhost:5000${targetImg}`;
   })();
 
-  // Multi-key resolvers for structural variations across datasets
-  const listingStatus = item.status || "For Sale";
-  const propertyTitle = item.title || "Untitled Property Listing";
-  const bedroomsCount = item.bedrooms !== undefined ? item.bedrooms : (item.beds || 0);
-  const bathroomsCount = item.bathrooms !== undefined ? item.bathrooms : (item.baths || 0);
-  const propertyGeoLocation = item.location || item.address || "Location not provided";
+  const propertyPrice =
+    item?.pricing?.salePrice ||
+    item?.pricing?.monthlyRent ||
+    item?.pricing?.dailyRate ||
+    item?.price ||
+    0;
+
+  const priceSuffix =
+    item.listingType === "rent"
+      ? " / mo"
+      : item.listingType === "hotel"
+      ? " / night"
+      : "";
+
+  const operationBadgeColors =
+    item.listingType === "sale"
+      ? "bg-emerald-600 text-white border-emerald-700 font-black text-[10px]"
+      : item.listingType === "rent"
+      ? "bg-blue-600 text-white border-blue-700 font-black text-[10px]"
+      : "bg-purple-600 text-white border-purple-700 font-black text-[10px]";
+
+  const operationLabel =
+    item.listingType === "sale"
+      ? "FOR SALE"
+      : item.listingType === "rent"
+      ? "FOR RENT"
+      : "HOTEL STAY";
 
   return (
-    <Link 
-      to={`/properties/${item._id || item.id}`}
-      className="w-full max-w-[312px] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between text-slate-800 dark:text-slate-200 group block no-underline mx-auto h-[385px]"
+    <Link
+      to={`/properties/${item._id}`}
+      className="w-full max-w-[312px] min-h-[440px] h-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between text-slate-800 dark:text-slate-200 group no-underline mx-auto"
     >
-      {/* 📷 IMAGE CONTAINER */}
-      <div className="relative w-full h-[195px] overflow-hidden bg-slate-950 shrink-0 border-b border-slate-100 dark:border-slate-800/20">
-        <img 
-          src={displayImage} 
-          alt={propertyTitle} 
-          loading="lazy" 
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
-          onError={(e) => {
-            // Hard network level fallback link loop protection
-            e.target.src = "https://unsplash.com";
-          }}
+      <div className="relative w-full h-[180px] overflow-hidden bg-slate-950 shrink-0 border-b border-slate-200 dark:border-slate-800/60">
+        <img
+          src={displayImage}
+          alt={item.title || "Property Asset"}
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
-        
-        {/* 🏷️ STATUS BADGE */}
-        <span className="absolute top-3 left-3 bg-white/95 text-slate-700 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider shadow-sm border border-transparent dark:border-slate-800">
-          {listingStatus}
-        </span>
 
-        {/* Favorite Button */}
-        <button 
-          type="button" 
+        <div className="absolute top-3 left-3 flex gap-1.5 z-10">
+          <span className={`px-2.5 py-1 rounded-md tracking-wider border ${operationBadgeColors}`}>
+            {operationLabel}
+          </span>
+        </div>
+
+        <button
+          type="button"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            toggleFavorite(item._id || item.id);
-          }} 
-          className="absolute top-3 right-3 w-7 h-7 bg-white/40 hover:bg-white/80 dark:bg-slate-900/40 dark:hover:bg-slate-900/80 backdrop-blur-sm rounded-full flex items-center justify-center transition-all shadow-sm border-0 cursor-pointer z-10 outline-none"
+            toggleFavorite(item._id);
+          }}
+          className="absolute top-3 right-3 w-9 h-9 bg-white/80 hover:bg-white dark:bg-slate-900/80 dark:hover:bg-slate-900 backdrop-blur-md rounded-full flex items-center justify-center transition-all border-0 shadow-xs cursor-pointer z-10 outline-none"
         >
-          <Heart className={`w-4 h-4 transition-colors ${isFavorited ? "fill-red-500 text-red-500" : "text-white dark:text-slate-300"}`} />
+          <Heart
+            className={`w-4 h-4 transition-colors ${
+              favorited ? "fill-red-500 text-red-500" : "text-slate-800 dark:text-white"
+            }`}
+          />
         </button>
       </div>
 
-      {/* CARD CONTENT LAYER */}
-      <div className="p-4 flex-1 flex flex-col justify-between">
-        <div className="text-left">
-          {/* Title */}
-          <h3 className="font-bold text-sm text-slate-800 dark:text-white tracking-tight leading-snug line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-            {propertyTitle}
-          </h3>
+      <div className="p-5 flex-1 flex flex-col justify-between text-left">
+        <div className="space-y-3">
+          <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 text-[11px] font-black uppercase tracking-wider">
+            <Layers className="w-3.5 h-3.5 shrink-0 stroke-[2.5]" />
+            <span className="capitalize">{item.propertyCategory || "House"}</span>
+          </div>
 
-          {/* Location */}
-          <div className="flex items-center gap-1 mt-1.5 text-slate-400 dark:text-slate-500">
-            <span className="text-[10px] shrink-0">📍</span>
-            <p className="text-[10.5px] font-medium text-slate-400 dark:text-slate-500 line-clamp-1 tracking-wide">
-              {propertyGeoLocation}
+          <h3 className="font-black text-base text-slate-900 dark:text-white tracking-tight line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors mt-1">
+            {item.title || "Untitled Listing"}
+          </h3>
+          
+          <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 min-h-[16px]">
+            <MapPin className="w-3.5 h-3.5 shrink-0 text-slate-400 dark:text-slate-500" />
+            <p className="text-xs font-bold line-clamp-1 text-slate-600 dark:text-slate-400">
+              {item.location || "Location unlisted"}
             </p>
           </div>
 
-          {/* Specifications Flex Line */}
-          <div className="flex items-center gap-2 mt-4 text-slate-500 dark:text-slate-400 text-[11px] font-semibold">
-            <div className="flex items-center gap-1">
-              <span className="text-slate-400 dark:text-slate-500">🛏️</span>
-              <span className="whitespace-nowrap">{bedroomsCount} {bedroomsCount === 1 ? 'Bedroom' : 'Bedrooms'}</span>
+          <div className="flex flex-wrap items-center gap-2 pt-2 text-slate-700 dark:text-slate-300 text-[11px] font-black">
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1 rounded-lg">
+              <span>🛏️</span> 
+              <span>{item.bedrooms || 0}</span> 
+              <span className="font-bold text-slate-400 dark:text-slate-500">Beds</span>
             </div>
-            <span className="text-slate-300 dark:text-slate-700 font-light select-none text-[8px]">•</span>
-            <div className="flex items-center gap-1">
-              <span className="text-slate-400 dark:text-slate-500">🛁</span>
-              <span className="whitespace-nowrap">{bathroomsCount} {bathroomsCount === 1 ? 'Bathroom' : 'Bathrooms'}</span>
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1 rounded-lg">
+              <span>🛁</span> 
+              <span>{item.bathrooms || 0}</span> 
+              <span className="font-bold text-slate-400 dark:text-slate-500">Baths</span>
+            </div>
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1 rounded-lg">
+              <span>📐</span> 
+              <span>{item.area || 0}</span> 
+              <span className="font-bold text-slate-400 dark:text-slate-500">sqft</span>
             </div>
           </div>
         </div>
 
-        {/* LOWER PRICING FOOTER */}
-        <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
-          <div className="text-left">
-            <span className="text-base font-black text-blue-600 dark:text-blue-500">
-              ${item.price ? item.price.toLocaleString() : "0"}
+        <div className="flex items-center justify-between mt-5 pt-4 border-t border-slate-200 dark:border-slate-800/80 shrink-0">
+          <div className="text-left min-w-0 flex-1 pr-2">
+            <span className="text-lg font-black text-blue-600 dark:text-blue-400 tracking-tight leading-none block sm:inline">
+              ${propertyPrice.toLocaleString()}
             </span>
-            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wide uppercase ml-0.5">
-              {listingStatus.toLowerCase().includes("rent") ? "/ Month" : "/ Total"}
+            <span className="text-[11px] font-black text-slate-500 dark:text-slate-400 tracking-wide lowercase ml-0.5">
+              {priceSuffix}
             </span>
           </div>
-          
-          <span className="px-3 py-1.5 bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 text-[10.5px] font-extrabold uppercase tracking-wide rounded-md border border-slate-200 dark:border-slate-700 transition-colors shadow-sm">
-            View More
+
+          {showStatusDropdown && (
+            <div
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              className="mr-2"
+            >
+              <select
+                value={item.listingStatus || "published"}
+                onChange={(e) => handleStatusChange(item._id, e.target.value)}
+                className="border border-slate-300 dark:border-slate-700 rounded-xl px-2 py-1.5 text-xs font-black bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 cursor-pointer outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+                <option value="archived">Archived</option>
+                <option value="sold">Sold</option>
+                <option value="closed">Closed</option>
+              </select>
+            </div>
+          )}
+
+          <span className="px-3.5 py-2 bg-slate-900 hover:bg-blue-600 dark:bg-slate-800 dark:hover:bg-blue-500 text-white font-black uppercase text-xs tracking-wider rounded-xl border-0 transition-all shadow-xs shrink-0">
+            Details
           </span>
         </div>
       </div>

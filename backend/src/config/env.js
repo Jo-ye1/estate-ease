@@ -5,5 +5,9 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Explicitly loads your keys from the backend root folder before anything else runs
-dotenv.config({ path: path.resolve(__dirname, "../../.env") });
+// Explicitly point to root backend folder
+dotenv.config({ 
+  path: path.resolve(__dirname, "../../.env") 
+});
+
+console.log("Database URI String State ->", process.env.MONGO_URI ? "LOADED SUCCESSFULLY ✅" : "UNDEFINED / MISSING ❌");

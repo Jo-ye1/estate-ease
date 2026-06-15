@@ -1,75 +1,122 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
-import { 
-  Building2, 
-  Heart, 
-  Sparkles, 
-  Edit3, 
-  Trash2, 
-  LayoutDashboard, 
-  Zap, 
-  History, 
-  FileText,
-  Home,
-  ShieldAlert 
+import React, { useEffect, useState } from "react";
+import { useSearchParams, Link } from "react-router-dom";
+import {
+  Building2,
+  Heart,
+  Sparkles,
+  LayoutDashboard,
+  PlusCircle,
+  Search,
+  User,
+  Shield,
+  Edit,
+  Trash2,
+  Calendar,
+  Layers,
+  ChevronRight,
+  ChevronLeft,
+  History as HistoryIcon
 } from "lucide-react";
 
-import { getMyProperties, deleteProperty } from "../services/propertyService";
-import { getFavorites } from "../services/favoriteServices"; 
-import Navbar from "@/components/home/Navbar"; 
-import AdminSettingsDashboard from './AdminSettingsDashboard'; 
+import {
+  getMyProperties,
+  deleteProperty,
+  updatePropertyStatus,
+} from "../services/propertyService";
+import { useFavorites } from "@/context/FavoritesContext";
+import Navbar from "@/components/home/Navbar";
+
 
 
 const DashboardPage = () => {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  
-  // 👑 CORE CONTENT VIEW SWITCHER (Defaults to your core system stats view)
-  const [activeTab, setActiveTab] = useState('overview');
-  const userRole = localStorage.getItem('user_role') || localStorage.getItem('role') || 'user';
+
+  const [activeTab, setActiveTab] = useState("overview");
+  const userRole =
+    localStorage.getItem("user_role") ||
+    localStorage.getItem("role") ||
+    "user";
 
   const [properties, setProperties] = useState([]);
-  const [favCount, setFavCount] = useState(0);
+  const { favorites } = useFavorites();
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState("all");
 
-  // 🎯 PAGINATION STATE HOOK LOGIC (3x3 Grid Split System)
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 9; 
+  const itemsPerPage = 9;
 
-  // 👑 RUNTIME LISTENER: Detect and catch URL ?tab=matrix routing parameter events
-  useEffect(() => {
-    const currentUrlTabValue = searchParams.get('tab');
-    if (currentUrlTabValue === 'matrix') {
-      setActiveTab('site-matrix');
-    } else {
-      setActiveTab('overview');
+  const getDisplayPrice = (property) => {
+    if (!property?.pricing) return 0;
+
+    if (property.listingType === "sale") {
+      return property.pricing.salePrice || property.price || 0;
     }
-  }, [searchParams]);
+
+    if (property.listingType === "rent") {
+      return property.pricing.monthlyRent || property.price || 0;
+    }
+
+    if (property.listingType === "hotel") {
+      return property.pricing.dailyRate || property.price || 0;
+    }
+
+    return property.price || 0;
+  };
+
+  const loadProperties = async () => {
+    try {
+      const data = await getMyProperties();
+
+      const sorted = (data || []).sort(
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+      );
+
+      setProperties(sorted);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   useEffect(() => {
-    const fetchDashboardStatsData = async () => {
+    const loadDashboard = async () => {
       try {
         setLoading(true);
-        const [myPropertiesData, favoritesData] = await Promise.all([
-          getMyProperties(),
-          getFavorites()
-        ]);
-        
+
+        const myPropertiesData = await getMyProperties();
+
         const sortedProperties = (myPropertiesData || []).sort(
           (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
         );
 
         setProperties(sortedProperties);
-        setFavCount(Array.isArray(favoritesData) ? favoritesData.length : 0);
       } catch (error) {
-        console.error("Error loading dashboard metrics:", error);
+        console.error(error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchDashboardStatsData();
+    loadDashboard();
   }, []);
+
+  useEffect(() => {
+    const currentUrlTabValue = searchParams.get("tab");
+
+    if (currentUrlTabValue === "matrix") {
+      setActiveTab("site-matrix");
+    } else {
+      setActiveTab("overview");
+    }
+  }, [searchParams]);
+
+  const handleStatusChange = async (id, status) => {
+    try {
+      await updatePropertyStatus(id, status);
+      await loadProperties();
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   const handleDeleteClick = async (id) => {
     if (!window.confirm("Are you sure you want to permanently delete this property listing?")) {
@@ -78,305 +125,349 @@ const DashboardPage = () => {
 
     try {
       await deleteProperty(id);
-      alert("Property removed successfully!");
-      const updatedList = properties.filter((property) => property._id !== id);
+
+      const updatedList = properties.filter(
+        (property) => property._id !== id
+      );
+
       setProperties(updatedList);
-      
-      const maxPagesRemaining = Math.ceil(updatedList.length / itemsPerPage) || 1;
+
+      const maxPagesRemaining =
+        Math.ceil(updatedList.length / itemsPerPage) || 1;
+
       if (currentPage > maxPagesRemaining) {
         setCurrentPage(maxPagesRemaining);
       }
     } catch (error) {
-      console.error("Delete failed:", error);
-      alert(error.response?.data?.message || "Failed to remove listing.");
+      console.error(error);
     }
   };
 
+  const filteredProperties =
+    statusFilter === "all"
+      ? properties
+      : properties.filter(
+          (property) => property.listingStatus === statusFilter
+        );
+
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  
-  const paginatedList = properties.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(properties.length / itemsPerPage) || 1;
+
+  const paginatedList = filteredProperties.slice(
+    indexOfFirstItem,
+    indexOfLastItem
+  );
+
+  const totalPages = Math.ceil(filteredProperties.length / itemsPerPage) || 1;
+
+  const latestProperty =
+    filteredProperties.length > 0 ? filteredProperties[0] : null;
 
   if (loading) {
     return (
-      <div className="w-full bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors duration-200 flex flex-col select-none">
+      <div className="w-full bg-slate-50 dark:bg-slate-950 min-h-screen flex flex-col">
         <Navbar />
-        <div className="flex-1 flex items-center justify-center py-32 text-center">
-          <div className="text-xs font-bold text-slate-400 dark:text-slate-600 animate-pulse uppercase tracking-widest flex items-center gap-2">
-            <LayoutDashboard className="w-4 h-4 animate-spin text-blue-600" />
-            <span>Loading Dashboard Insights...</span>
-          </div>
+        <div className="flex-1 flex items-center justify-center py-40">
+          <LayoutDashboard className="w-6 h-6 animate-spin text-blue-600" />
         </div>
       </div>
     );
   }
 
-  const latestProperty = properties.length > 0 ? properties[0] : null;
+  const statusColors = {
+    draft: "bg-yellow-500 text-white",
+    published: "bg-green-600 text-white",
+    archived: "bg-gray-500 text-white",
+    sold: "bg-red-600 text-white",
+    closed: "bg-black text-white",
+  };
+
 
   return (
-    // 🎯 TARGET SPEC MULTI-THEME OVERRIDE CANVAS
-    <div className="w-full bg-slate-50 dark:bg-slate-950 min-h-screen select-none text-left transition-colors duration-200 pb-24 flex flex-col">
-      
+    <div className="w-full min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 transition-colors duration-200 pb-24 flex flex-col select-none">
       <Navbar />
 
-      {/* 🎯 MAIN CANVASES FRAMEWORK ENVELOPE */}
       <section className="max-w-[1320px] mx-auto w-full px-4 pt-12 flex-1 flex flex-col justify-start">
-        
-        {/* LEFT FLUSH HEADER COMPONENT ROW WITH ACCENT LINE */}
-        <div className="mb-10 relative inline-block w-full">
-          <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-500 bg-blue-500/10 px-3 py-1 rounded-full mb-3 block w-max">
-            Operations Panel
+        {/* Header Section */}
+        <div className="mb-10 text-left">
+          <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 bg-blue-500/10 px-3 py-1 rounded-full mb-3 block w-max">
+            Management Hub
           </span>
-          <h1 className="text-3xl lg:text-4xl font-black text-slate-800 dark:text-white tracking-tight pb-2">
-            Owner <span className="text-blue-600 dark:text-blue-500">Dashboard</span>
+          <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+            Owner Dashboard
           </h1>
-          
-          {/* 🎯 FIXED SUBTITLE: Swapped the formatting to block with clean leading properties to kill the line strike-through bug completely */}
-          <p className="text-slate-400 dark:text-slate-500 text-xs font-medium tracking-wide mt-1 block leading-normal select-text">
-            Manage operations, track listing engagement metrics, and access system shortcuts
-          </p>
-          
-          <div className="w-24 h-[2px] bg-blue-600 dark:bg-blue-500 rounded-full mt-4" />
+          <div className="w-16 h-[2px] bg-blue-600 dark:bg-blue-400 rounded-full mt-3" />
         </div>
 
-        {/* 📊 STATISTICS GRID PANEL ROW */}
+        {/* 📊 METRICS INFOGRAPHIC PLATES */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12 w-full">
-          {/* Stat Box 1 */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl p-6 shadow-sm flex items-center justify-between">
-            <div className="text-left">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-6 rounded-2xl shadow-xs flex items-center justify-between text-left">
+            <div>
               <p className="text-slate-400 dark:text-slate-500 font-bold text-[10.5px] uppercase tracking-widest">Total Listings</p>
-              <p className="text-3xl lg:text-4xl font-black text-slate-800 dark:text-white mt-2 tracking-tight">{properties.length}</p>
+              <h2 className="text-3xl font-black text-slate-800 dark:text-white mt-2 tracking-tight">{properties.length}</h2>
             </div>
-            <div className="w-12 h-12 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 flex items-center justify-center rounded-xl text-blue-600 dark:text-blue-500 shrink-0">
+            <div className="w-12 h-12 bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center rounded-xl shrink-0">
               <Building2 className="w-5 h-5" />
             </div>
           </div>
 
-          {/* Stat Box 2 */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl p-6 shadow-sm flex items-center justify-between">
-            <div className="text-left">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-6 rounded-2xl shadow-xs flex items-center justify-between text-left">
+            <div>
               <p className="text-slate-400 dark:text-slate-500 font-bold text-[10.5px] uppercase tracking-widest">Total Favorites</p>
-              <p className="text-3xl lg:text-4xl font-black text-red-500 mt-2 tracking-tight">{favCount}</p>
+              <h2 className="text-3xl font-black text-red-500 mt-2 tracking-tight">{favorites.length}</h2>
             </div>
-            <div className="w-12 h-12 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 flex items-center justify-center rounded-xl text-red-500 shrink-0">
+            <div className="w-12 h-12 bg-red-500/10 text-red-500 flex items-center justify-center rounded-xl shrink-0">
               <Heart className="w-5 h-5" />
             </div>
           </div>
 
-          {/* Stat Box 3 */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl p-6 shadow-sm flex items-center justify-between sm:col-span-2 lg:col-span-1">
-            <div className="text-left min-w-0 flex-1">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-6 rounded-2xl shadow-xs flex items-center justify-between text-left sm:col-span-2 lg:col-span-1">
+            <div className="min-w-0 flex-1">
               <p className="text-slate-400 dark:text-slate-500 font-bold text-[10.5px] uppercase tracking-widest">Latest Property</p>
               {latestProperty ? (
                 <>
-                  <p className="text-sm font-black text-slate-800 dark:text-white mt-2 truncate max-w-[240px] tracking-tight">
-                    {latestProperty.title}
-                  </p>
-                  <p className="text-blue-600 dark:text-blue-400 font-bold text-xs mt-1 truncate">
-                    ${latestProperty.price?.toLocaleString()} • <span className="text-slate-400 font-medium normal-case">{latestProperty.location}</span>
+                  <h2 className="text-sm font-black text-slate-800 dark:text-white mt-2 truncate tracking-tight">{latestProperty.title}</h2>
+                  <p className="text-blue-600 dark:text-blue-400 font-bold text-xs mt-0.5">
+                    ${getDisplayPrice(latestProperty).toLocaleString()}
                   </p>
                 </>
               ) : (
-                <p className="text-xs text-slate-400 dark:text-slate-500 font-medium italic mt-3">No active marketplace assets</p>
+                <p className="text-xs text-slate-400 font-medium italic mt-3">No active assets</p>
               )}
             </div>
-            <div className="w-12 h-12 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 flex items-center justify-center rounded-xl text-amber-500 shrink-0 ml-4">
+            <div className="w-12 h-12 bg-amber-500/10 text-amber-500 flex items-center justify-center rounded-xl shrink-0 ml-4">
               <Sparkles className="w-5 h-5" />
             </div>
           </div>
         </div>
 
-        {/* MAIN TWO-COLUMN SPLIT CONTAINER GRID */}
+        {/* MAIN PANEL CONTENT SPLIT ROW */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 w-full items-start">
           
-          {/* LEFT COLUMN PANEL: LIVE OPERATIONS LISTINGS FEED */}
+          {/* LEFT PANELS COLUMN: MAIN DATA GRIDS FEED */}
           <div className="lg:col-span-8 space-y-6 w-full">
-            <div className="flex items-center gap-2 text-left mb-2">
-              <Building2 className="w-5 h-5 text-slate-400 dark:text-slate-500" />
-              <h2 className="text-xl font-black text-slate-800 dark:text-white tracking-tight">Your Published Properties</h2>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-left border-b border-slate-100 dark:border-slate-900 pb-4">
+              <div className="flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-slate-400" />
+                <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">Your Properties</h2>
+              </div>
+
+              <select
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs font-bold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-xs cursor-pointer"
+              >
+                <option value="all">All listings</option>
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+                <option value="archived">Archived</option>
+                <option value="sold">Sold</option>
+                <option value="closed">Closed</option>
+              </select>
             </div>
-            
-            {properties.length === 0 ? (
-              <div className="text-center py-20 border border-dashed border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-900/40 w-full shadow-xs flex flex-col items-center justify-center">
-                <p className="text-sm text-slate-400 dark:text-slate-500 font-bold mb-2">You haven't listed any properties yet</p>
-                <Link to="/add-property" className="text-xs font-extrabold text-blue-600 dark:text-blue-400 uppercase tracking-wider hover:underline flex items-center gap-1">
-                  <span>List a Property Now</span>
-                  <span>&rarr;</span>
-                </Link>
+
+                                    {paginatedList.length === 0 ? (
+              <div className="text-center py-20 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900/40 w-full flex flex-col items-center justify-center">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">No workspace records detected</p>
               </div>
             ) : (
-              <>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 w-full justify-items-center sm:justify-items-start">
+              <div className="space-y-8 w-full">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 w-full justify-items-center sm:justify-items-start">
                   {paginatedList.map((property) => (
-                    <div key={property._id} className="w-full max-w-[380px] bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl overflow-hidden flex flex-col justify-between shadow-sm transition-all duration-300 hover:shadow-md group">
+                    <div key={property._id} className="w-full max-w-[312px] h-[385px] bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl overflow-hidden flex flex-col justify-between shadow-xs hover:shadow-sm transition-all duration-200 group text-left">
                       <div>
-                        <div className="relative h-44 w-full bg-slate-950 overflow-hidden shrink-0">
+                        <div className="relative h-44 w-full bg-slate-950 overflow-hidden shrink-0 border-b border-slate-100 dark:border-slate-800/20">
                           <img
-                            src={property.images && property.images.length > 0 ? property.images : "/placeholder.jpg"}
+                            src={
+                              property.images?.length > 0
+                                ? property.images[0].startsWith("http")
+                                  ? property.images[0]
+                                  : `http://localhost:5000${property.images[0]}`
+                                : "/placeholder.jpg"
+                            }
                             alt={property.title}
                             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                           />
-                          <div className="absolute top-3 left-3 bg-white/95 dark:bg-slate-900/90 border border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-black tracking-wider uppercase px-2.5 py-1 rounded-md shadow-xs">
-                            {property.type}
-                          </div>
+                          <span className={`absolute top-3 left-3 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider shadow-xs ${statusColors[property.listingStatus] || "bg-slate-500 text-white"}`}>
+                            {property.listingStatus || "Draft"}
+                          </span>
                         </div>
 
-                        <div className="p-4 text-left">
-                          <h3 className="font-bold text-sm text-slate-800 dark:text-white tracking-tight line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{property.title}</h3>
-                          <p className="text-slate-400 dark:text-slate-500 text-[11px] font-medium mt-1 truncate tracking-wide max-w-[210px]">{property.location}</p>
-                          <p className="text-blue-600 dark:text-blue-500 font-black text-base mt-3.5 leading-none">
-                            ${property.price?.toLocaleString()}
+                        <div className="p-4">
+                          <h3 className="font-bold text-sm text-slate-800 dark:text-white tracking-tight line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                            {property.title}
+                          </h3>
+                          <p className="text-slate-400 dark:text-slate-500 text-[10.5px] font-medium mt-1 truncate tracking-wide">
+                            {property.location || "Location unlisted"}
+                          </p>
+                          <p className="text-blue-600 dark:text-blue-500 font-black text-sm mt-3 leading-none">
+                            ${getDisplayPrice(property).toLocaleString()}
                           </p>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 border-t border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-950/20 p-3.5 gap-3">
-                        <button 
-                          type="button"
-                          onClick={() => navigate(`/edit-property/${property._id}`)}
-                          className="w-full h-8.5 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 font-extrabold py-1.5 rounded-xl text-[10.5px] uppercase tracking-wider bg-white dark:bg-slate-800 transition-all cursor-pointer text-center shadow-xs flex items-center justify-center gap-1.5"
+                      <div className="p-3.5 border-t border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-950/20 flex flex-col gap-2 shrink-0">
+                        <select
+                          value={property.listingStatus || "draft"}
+                          onChange={(e) => handleStatusChange(property._id, e.target.value)}
+                          className="w-full border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-[11px] bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
                         >
-                          <Edit3 className="w-3.5 h-3.5" />
-                          <span>Edit</span>
-                        </button>
-                        <button 
-                          type="button"
-                          onClick={() => handleDeleteClick(property._id)}
-                          className="w-full h-8.5 border border-red-200 dark:border-red-900/40 text-red-600 hover:text-white font-extrabold py-1.5 rounded-xl text-[10.5px] uppercase tracking-wider bg-red-500/5 hover:bg-red-600 dark:hover:bg-red-600 transition-all cursor-pointer text-center shadow-xs flex items-center justify-center gap-1.5"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>Delete</span>
-                        </button>
+                          <option value="draft">Draft</option>
+                          <option value="published">Published</option>
+                          <option value="archived">Archived</option>
+                          <option value="sold">Sold</option>
+                          <option value="closed">Closed</option>
+                        </select>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <Link
+                            to={`/edit-property/${property._id}`}
+                            className="flex items-center justify-center gap-1 text-center text-[11px] font-bold py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 transition-colors no-underline bg-white dark:bg-slate-900 shadow-2xs"
+                          >
+                            <Edit className="w-3 h-3" />
+                            <span>Edit</span>
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteClick(property._id)}
+                            className="flex items-center justify-center gap-1 text-center text-[11px] font-bold py-1.5 rounded-lg bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/50 border-0 cursor-pointer transition-colors"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            <span>Delete</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
 
-                {/* COMPACT NUMERIC PAGINATION NAVIGATION PORTS */}
                 {totalPages > 1 && (
-                  <div className="flex items-center justify-center gap-1.5 mt-8 pt-6 border-t border-slate-200 dark:border-slate-800/60 w-full select-none">
+                  <div className="flex justify-center items-center gap-3 pt-6 mt-4 w-full border-t border-slate-100 dark:border-slate-800/60">
                     <button
                       type="button"
                       disabled={currentPage === 1}
-                      onClick={() => {
-                        setCurrentPage((prev) => Math.max(prev - 1, 1));
-                        window.scrollTo({ top: 0, behavior: "smooth" });
-                      }}
-                      className="h-8 px-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-40 font-extrabold text-[10px] uppercase tracking-wider rounded-xl transition-all cursor-pointer disabled:cursor-not-allowed select-none shadow-xs"
+                      onClick={() => setCurrentPage(currentPage - 1)}
+                      className="w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-center bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed border-0 outline-none"
                     >
-                      &larr; Prev
+                      <ChevronLeft size={16} />
                     </button>
-
-                    {Array.from({ length: totalPages }).map((_, index) => {
-                      const pageNum = index + 1;
-                      const isSelected = currentPage === pageNum;
-
-                      return (
-                        <button
-                          key={pageNum}
-                          type="button"
-                          onClick={() => {
-                            setCurrentPage(pageNum);
-                            window.scrollTo({ top: 0, behavior: "smooth" });
-                          }}
-                          className={`w-8 h-8 font-black text-xs transition-all border rounded-xl cursor-pointer select-none flex items-center justify-center ${
-                            isSelected
-                              ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-600/10"
-                              : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-950/40"
-                          }`}
-                        >
-                          {pageNum}
-                        </button>
-                      );
-                    })}
-
+                    
+                    <div className="text-xs font-mono font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                      Page {currentPage} of {totalPages}
+                    </div>
+                    
                     <button
                       type="button"
                       disabled={currentPage === totalPages}
-                      onClick={() => {
-                        setCurrentPage((prev) => Math.min(prev + 1, totalPages));
-                        window.scrollTo({ top: 0, behavior: "smooth" });
-                      }}
-                      className="h-8 px-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-40 font-extrabold text-[10px] uppercase tracking-wider rounded-xl transition-all cursor-pointer disabled:cursor-not-allowed select-none shadow-xs"
+                      onClick={() => setCurrentPage(currentPage + 1)}
+                      className="w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-center bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed border-0 outline-none"
                     >
-                      Next &rarr;
+                      <ChevronRight size={16} />
                     </button>
                   </div>
                 )}
-              </>
+              </div>
             )}
           </div>
 
-{/* 📄 RIGHT COLUMN PANEL: QUICK ACTIONS & TIMELINE SIDEBAR */}
-<div className="lg:col-span-4 space-y-6 w-full text-left">
-  <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl p-6 shadow-sm">
-    <div className="flex items-center gap-2 mb-5 border-b border-slate-100 dark:border-slate-800/60 pb-3">
-      <Zap className="w-4 h-4 text-blue-600 dark:text-blue-500" />
-      <h3 className="font-bold text-xs uppercase tracking-wider text-slate-800 dark:text-white">Quick Shortcuts</h3>
-    </div>
-    <div className="flex flex-col gap-3">
-      
-      {/* 👑 NEW ADMIN CHANNELS ACCESS POINT MODULE */}
-      {userRole === "admin" && (
-        <Link 
-          to="/dashboard?tab=matrix" 
-          className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-95 text-white font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all shadow-md text-center flex items-center justify-center h-10 border-0 cursor-pointer no-underline mb-1"
-        >
-          👑 Open Admin System Matrix
-        </Link>
-      )}
 
-      <Link to="/add-property" className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all shadow-md shadow-blue-600/10 text-center flex items-center justify-center h-10 border-0 cursor-pointer no-underline">
-        + Add Property Listing
-      </Link>
-      
-      <Link to="/search" className="w-full py-2.5 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300 font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all border border-slate-200 dark:border-slate-800 text-center flex items-center justify-center h-10 cursor-pointer no-underline">
-        Open Search Engine
-      </Link>
-
-      <Link to="/properties" className="w-full py-2.5 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300 font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all border border-slate-200 dark:border-slate-800 text-center flex items-center justify-center h-10 cursor-pointer no-underline">
-        View Catalog Listings
-      </Link>
-      
-      <Link to="/favorites" className="w-full py-2.5 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300 font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all border border-slate-200 dark:border-slate-800 text-center flex items-center justify-center h-10 cursor-pointer no-underline">
-        View Bookmarked Pool
-      </Link>
-      
-      <Link to="/profile" className="w-full py-2.5 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300 font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all border border-slate-200 dark:border-slate-800 text-center flex items-center justify-center h-10 cursor-pointer no-underline">
-        Configure Account Settings
-      </Link>
-    </div>
-  </div>
-
-
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl p-6 shadow-sm">
-              <div className="flex items-center gap-2 mb-5 border-b border-slate-100 dark:border-slate-800/60 pb-3">
-                <History className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-                <h3 className="font-bold text-xs uppercase tracking-wider text-slate-800 dark:text-white">Recent Activity</h3>
-              </div>
-            <div className="space-y-4 max-h-[340px] overflow-y-auto pr-1">
-                {properties.length > 0 ? (
-                  properties.slice(0, 4).map((item) => (
-                    <div key={item._id} className="flex gap-3 text-xs border-b border-slate-100 dark:border-slate-800/60 pb-3 last:border-0 last:pb-0 items-start">
-                      <div className="w-8 h-8 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 flex items-center justify-center rounded-lg text-blue-600 dark:text-blue-500 shrink-0">
-                        <FileText className="w-3.5 h-3.5" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-bold text-slate-800 dark:text-slate-100 leading-tight">Listing Document Generated</p>
-                        <p className="text-slate-400 dark:text-slate-500 mt-0.5 font-medium truncate max-w-[190px]">{item.title}</p>
-                        <p className="text-slate-400 dark:text-slate-600 text-[9px] font-bold uppercase mt-1 tracking-wide">{new Date(item.createdAt).toLocaleDateString()}</p>
-                      </div>
+          {/* RIGHT SIDEBAR PANEL COLUMN: OPERATIONS SHORTCUTS BAR */}
+          <div className="lg:col-span-4 space-y-6 w-full text-left">
+            <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-5 rounded-2xl shadow-xs">
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white mb-4">Quick Navigation</h3>
+              
+              <div className="flex flex-col gap-1">
+                {userRole === "admin" && (
+                  <Link
+                    to="/dashboard?tab=matrix"
+                    className="flex items-center justify-between text-xs font-bold p-3 text-blue-600 dark:text-blue-400 hover:bg-blue-500/5 rounded-xl no-underline transition-colors"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Shield className="w-4 h-4" />
+                      <span>Admin System Matrix</span>
                     </div>
-                  ))
-                ) : (
-                  <p className="text-slate-400 dark:text-slate-500 text-xs font-semibold italic py-4 text-center">No recent activity logs recorded.</p>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </Link>
                 )}
+
+                <Link
+                  to="/add-property"
+                  className="flex items-center justify-between text-xs font-bold p-3 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl no-underline transition-colors"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <PlusCircle className="w-4 h-4 text-slate-400" />
+                    <span>Add New Property</span>
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                </Link>
+
+                <Link
+                  to="/properties"
+                  className="flex items-center justify-between text-xs font-bold p-3 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl no-underline transition-colors"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Building2 className="w-4 h-4 text-slate-400" />
+                    <span>Explore Market Feed</span>
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                </Link>
+
+                <Link
+                  to="/favorites"
+                  className="flex items-center justify-between text-xs font-bold p-3 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl no-underline transition-colors"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Heart className="w-4 h-4 text-slate-400" />
+                    <span>Your Bookmarks</span>
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                </Link>
+
+                <Link
+                  to="/profile"
+                  className="flex items-center justify-between text-xs font-bold p-3 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl no-underline transition-colors"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <User className="w-4 h-4 text-slate-400" />
+                    <span>Account Profile Settings</span>
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                </Link>
               </div>
             </div>
 
-          </div> 
-        </div> 
+                       {/* RECENT ACTIVITY TIMELINE */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-5 rounded-2xl shadow-xs">
+              <div className="flex items-center gap-2 mb-4">
+                {/* 🛡️ CHANGED: Using HistoryIcon to eliminate browser constructor crashes */}
+                <HistoryIcon className="w-4 h-4 text-slate-400" />
+                <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">Recent Activity</h3>
+              </div>
+
+              <div className="space-y-3.5">
+                {properties.slice(0, 4).map((item) => (
+                  <div key={item._id} className="flex items-start justify-between gap-3 text-xs border-b border-slate-100 dark:border-slate-800/40 pb-2.5 last:border-0 last:pb-0">
+                    <div className="min-w-0">
+                      <p className="font-bold text-slate-800 dark:text-white truncate tracking-tight">{item.title}</p>
+                      <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide mt-0.5">
+                        Status: {item.listingStatus || "Draft"}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-950 px-2 py-0.5 rounded-md shrink-0">
+                      <Calendar className="w-3 h-3" />
+                      <span>{new Date(item.createdAt).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+
+        </div>
       </section>
     </div>
   );

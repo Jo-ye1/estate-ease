@@ -1,36 +1,64 @@
 import { useState, useEffect } from "react";
-import { LogOut, User, ShieldCheck, Mail, Lock, Settings, KeyRound, Building2, Heart, MessageSquare } from "lucide-react"; 
+import { useNavigate } from "react-router-dom";
+import {
+  LogOut,
+  ShieldCheck,
+  Settings,
+  KeyRound,
+  Building2,
+  Heart,
+  MessageSquare,
+  User,
+  Mail,
+  UploadCloud,
+  ChevronLeft,
+  ChevronRight,
+  Save,
+  Lock,
+  Grid
+} from "lucide-react";
+
 import { useAuth } from "../context/AuthContext";
 import { useFavorites } from "../context/FavoritesContext";
 import { getMyProperties } from "../services/propertyService";
 import PropertyCard from "../components/home/PropertyCard";
-import Navbar from "@/components/home/Navbar"; 
-import api from "../lib/api"; 
+import Navbar from "@/components/home/Navbar";
+import api from "../lib/api";
 import AddReviewForm from "../components/home/AddReviewForm";
+import { Eye, EyeOff } from "lucide-react";
+
 
 export default function ProfilePage() {
+  const navigate = useNavigate();
   const { user, logout, login } = useAuth();
   const { favorites, loading: favsLoading } = useFavorites();
-  
+
+  const resolvedUser = user || {};
+
   const [myProperties, setMyProperties] = useState([]);
   const [listingsLoading, setListingsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("listings");
 
-  // 🎯 DYNAMIC STATE: Added state handlers to manage pagination pagination boundaries
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 6; // 🛠️ Locks the grid view down to exactly 6 items max per tab selection
+  const itemsPerPage = 6;
 
-  // Profile Update Form Fields States
+  const fallbackUserObj = JSON.parse(localStorage.getItem("user") || "{}");
+
   const [profileForm, setProfileForm] = useState({
-    name: user?.name || user?.user?.name || "User Account",
-    email: user?.email || user?.user?.email || "",
+    name: resolvedUser.name || fallbackUserObj.name || "",
+    email: resolvedUser.email || fallbackUserObj.email || "",
   });
 
-  // Avatar Management Local States
-  const [avatarFile, setAvatarFile] = useState(null);
-  const [avatarPreview, setAvatarPreview] = useState(user?.avatar || user?.user?.avatar || "");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Password Modification Form Fields States
+
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState(
+    resolvedUser.avatar || fallbackUserObj.avatar || ""
+  );
+
   const [securityForm, setSecurityForm] = useState({
     currentPassword: "",
     newPassword: "",
@@ -41,13 +69,24 @@ export default function ProfilePage() {
   const [updatingPassword, setUpdatingPassword] = useState(false);
 
   useEffect(() => {
+    const freshUserObj = JSON.parse(localStorage.getItem("user") || "{}");
+    const activeUserName = resolvedUser.name || freshUserObj.name || "";
+    const activeUserEmail = resolvedUser.email || freshUserObj.email || "";
+
+    setProfileForm({
+      name: activeUserName,
+      email: activeUserEmail,
+    });
+
+    setAvatarPreview(resolvedUser.avatar || freshUserObj.avatar || "");
+  }, [resolvedUser]);
+
+  useEffect(() => {
     const loadOwnerListings = async () => {
       try {
         setListingsLoading(true);
         const data = await getMyProperties();
         setMyProperties(data || []);
-      } catch (error) {
-        console.error("Failed to load user listing index records:", error);
       } finally {
         setListingsLoading(false);
       }
@@ -55,356 +94,382 @@ export default function ProfilePage() {
     loadOwnerListings();
   }, []);
 
-  // ⚡ Reset pagination index whenever a user switches between Listings and Bookmarks tabs
-    useEffect(() => {
+  useEffect(() => {
     setCurrentPage(1);
   }, [activeTab]);
 
-  const handleProfileChange = (e) => {
+  const handleProfileChange = (e) =>
     setProfileForm({ ...profileForm, [e.target.name]: e.target.value });
-  };
 
-  const handleSecurityChange = (e) => {
+  const handleSecurityChange = (e) =>
     setSecurityForm({ ...securityForm, [e.target.name]: e.target.value });
-  };
 
-  // 👑 REWRITTEN: Generates a temporary local preview but retains the file object reference safely
   const handleAvatarFileSelection = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      const targetFile = e.target.files[0];
-      setAvatarFile(targetFile);
-      
-      // 💡 Generate local temporary path purely for visual instant feedback in the admin UI
-      setAvatarPreview(URL.createObjectURL(targetFile));
+    if (e.target.files?.[0]) {
+      const file = e.target.files[0];
+      setAvatarFile(file);
+      setAvatarPreview(URL.createObjectURL(file));
     }
   };
-  // 👑 PROFILE SUBMISSION WITH ADMIN ROLE PRESERVATION GUARD & SYNTAX CORRECTIONS
+
   const handleProfileSubmit = async (e) => {
     e.preventDefault();
-    if (!profileForm.name.trim()) return alert("Name field cannot be left blank.");
-
     try {
       setUpdatingProfile(true);
-      
-      const resolvedUser = user?.user ? user.user : user;
-      
-      // 🛡️ Backup your current active role before dispatching updates
-      const existingUserRole = resolvedUser?.role || localStorage.getItem("user_role") || "user";
-      let updatedAvatarUrl = resolvedUser?.avatar || resolvedUser?.profilePic || resolvedUser?.image || "";
+      let updatedAvatarUrl = resolvedUser.avatar || "";
 
-      // Step A: Handle avatar file processing
       if (avatarFile) {
-        const multipartForm = new FormData();
-        multipartForm.append("image", avatarFile); 
+        const form = new FormData();
+        form.append("image", avatarFile);
         
-        try {
-          const uploadRes = await api.post("/auth/upload-avatar", multipartForm, {
-            headers: { "Content-Type": "multipart/form-data" }
-          });
-          updatedAvatarUrl = uploadRes.data?.image || uploadRes.data?.avatarUrl || updatedAvatarUrl;
-        } catch (uploadErr) {
-          console.warn("Using current preview string as avatar path.", uploadErr);
-          updatedAvatarUrl = avatarPreview;
-        }
+        const res = await api.post(
+          "/auth/upload-avatar", 
+          form,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
+        updatedAvatarUrl = res.data?.image || updatedAvatarUrl;
       }
 
-      // Step B: Build payload object variants
-      const profilePayload = {
+      const payload = {
         name: profileForm.name.trim(),
         avatar: updatedAvatarUrl,
-        profilePic: updatedAvatarUrl,
-        image: updatedAvatarUrl
       };
 
-      let databaseVerifiedUserObj = null;
+      const res = await api.put("/auth/profile", payload);
+      const updatedUser = res.data?.user || {
+        ...resolvedUser,
+        ...payload,
+      };
 
-      try {
-        const backendUpdateResponse = await api.put("/auth/update-profile", profilePayload);
-        databaseVerifiedUserObj = backendUpdateResponse.data?.user;
-      } catch (networkErr) {
-        console.warn("Backend unaligned, proceeding with local memory fallback.", networkErr);
-      }
+      setAvatarPreview(updatedUser.avatar || "");
+      localStorage.setItem("user", JSON.stringify(updatedUser));
 
-      // Step C: Force insert role backups if missing from server response object block
-      if (!databaseVerifiedUserObj) {
-        databaseVerifiedUserObj = { 
-          ...resolvedUser, 
-          name: profileForm.name.trim(), 
-          avatar: updatedAvatarUrl,
-          profilePic: updatedAvatarUrl,
-          role: existingUserRole
-        };
-      } else if (!databaseVerifiedUserObj.role) {
-        databaseVerifiedUserObj.role = existingUserRole;
-      }
-      
-           // ... your existing Step A and Step B processing codes ...
+      login({
+        token: localStorage.getItem("token"),
+        user: updatedUser,
+      });
 
-      // 👑 THE ABSOLUTE COLLISION FIX: Scope all storage keys using the user's unique ID token!
-      const userId = databaseVerifiedUserObj._id || databaseVerifiedUserObj.id || "guest_sync";
-
-      const fullProfilePicUrl = updatedAvatarUrl.startsWith('http') || updatedAvatarUrl.startsWith('data:') || updatedAvatarUrl.startsWith('blob:')
-        ? updatedAvatarUrl 
-        : `http://localhost:5000${updatedAvatarUrl}`;
-
-      setAvatarPreview(fullProfilePicUrl);
-
-      // 1. Save the complete user object document block natively
-      localStorage.setItem("user", JSON.stringify(databaseVerifiedUserObj));
-      
-      // 2. 🛡️ Lock this user's profile picture using their unique user ID key
-      localStorage.setItem(`user_profile_pic_${userId}`, fullProfilePicUrl);
-      
-      // 3. 🛡️ Lock this user's role privilege using their unique user ID key
-      localStorage.setItem(`user_role_${userId}`, databaseVerifiedUserObj.role);
-
-      // Re-hydrate your global application authentication state provider context
-      login({ token: localStorage.getItem("token") || "mock_token", user: databaseVerifiedUserObj });
-
-      alert("Profile configurations saved with isolated user-space locks!");
-
+      alert("Profile updated successfully!");
+    } catch (error) {
+      console.error(error);
+      alert("Failed updating profile assets.");
     } finally {
       setUpdatingProfile(false);
     }
   };
 
-
   const handleSecuritySubmit = async (e) => {
     e.preventDefault();
-    if (!securityForm.currentPassword || !securityForm.newPassword || !securityForm.confirmPassword) {
-      return alert("Please complete all password parameter fields.");
+
+    if (
+      !securityForm.currentPassword ||
+      !securityForm.newPassword ||
+      !securityForm.confirmPassword
+    ) {
+      return alert("Fill all fields");
     }
+
     if (securityForm.newPassword !== securityForm.confirmPassword) {
-      return alert("Validation Failure: New passwords do not match confirmation fields.");
+      return alert("Passwords do not match");
     }
 
     try {
       setUpdatingPassword(true);
+
       await api.put("/auth/update-password", {
         currentPassword: securityForm.currentPassword,
-        newPassword: securityForm.newPassword
+        newPassword: securityForm.newPassword,
       });
-      alert("Password security updated successfully inside database!");
-      setSecurityForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
-    } catch (err) {
-      alert(err.response?.data?.message || "Failed to change account security parameters inside database.");
+
+      alert("Password updated");
+      setSecurityForm({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+    } catch (error) {
+      console.error(error);
+      alert(error?.response?.data?.message || "Password update exception occurred.");
     } finally {
       setUpdatingPassword(false);
     }
   };
 
-  const cleanFavoritesList = favorites.map((fav) => fav.property ? fav.property : fav).filter(Boolean);
+  const cleanFavoritesList = (favorites || [])
+    .map((f) => f?.property || f)
+    .filter(Boolean);
 
-  // =========================================================
-  // 🎯 PART 2: DYNAMIC PAGINATION SLICER (Right Column Feed Math)
-  // =========================================================
-  const activeDataset = activeTab === "listings" ? myProperties : cleanFavoritesList;
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  
-  const paginatedList = activeDataset.slice(indexOfFirstItem, indexOfLastItem);
+  const activeDataset =
+    activeTab === "listings" ? myProperties : cleanFavoritesList;
+
+  const indexOfLast = currentPage * itemsPerPage;
+  const indexOfFirst = indexOfLast - itemsPerPage;
+
+  const paginatedList = activeDataset.slice(indexOfFirst, indexOfLast);
   const totalPages = Math.ceil(activeDataset.length / itemsPerPage) || 1;
+
   const tabLoading = activeTab === "listings" ? listingsLoading : favsLoading;
 
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+  };
+
+
   return (
-    <div className="w-full bg-slate-50 dark:bg-slate-950 min-h-screen select-none text-left transition-colors duration-200 pb-24 flex flex-col">
+    <div className="w-full min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 transition-colors duration-200 pb-24 flex flex-col select-none">
       <Navbar />
 
       <section className="max-w-[1320px] mx-auto w-full px-4 pt-12 flex-1 flex flex-col justify-start">
-        
-        {/* UPPER IDENTITY DASHBOARD BANNER */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-6 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 p-6 rounded-2xl shadow-sm mb-10 text-center sm:text-left w-full">
-          <div className="flex flex-col sm:flex-row items-center gap-5">
-            <div className="relative group w-20 h-20 bg-blue-600 border-2 border-blue-500 rounded-full overflow-hidden flex items-center justify-center text-3xl font-black text-white shadow-md uppercase select-none shrink-0">
+        {/* HEADER BRAND BLOCK */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-6 rounded-3xl shadow-xs mb-10 text-left">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-blue-600/10 border border-blue-500/20 overflow-hidden shrink-0 flex items-center justify-center font-black text-xl text-blue-600 dark:text-blue-400">
               {avatarPreview ? (
-                <img src={avatarPreview} alt="User Profile" className="w-full h-full object-cover" />
+                <img src={avatarPreview} alt="User Profile" className="w-full h-full object-cover rounded-full" />
               ) : (
-                <span>{profileForm.name.charAt(0)}</span>
+                profileForm.name[0]?.toUpperCase()
               )}
-              <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-[10px] font-black text-slate-200 uppercase cursor-pointer transition-all duration-150 select-none">
-                Edit Photo
-                <input type="file" accept="image/*" onChange={handleAvatarFileSelection} className="hidden" />
-              </label>
             </div>
 
-            <div className="min-w-0 text-left">
-              <h1 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight truncate">{profileForm.name}</h1>
-              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-1.5 text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wide">
-                <span className="truncate max-w-[200px]">{profileForm.email}</span>
-                <span className="inline-flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-2.5 py-0.5 rounded-md text-[9px] font-black tracking-wider shadow-xs">
-                  <ShieldCheck className="w-3 h-3 shrink-0" />
-                  <span>Verified Profile</span>
-                </span>
-              </div>
+            <div>
+              <h1 className="font-black text-xl text-slate-900 dark:text-white tracking-tight leading-none">
+                {profileForm.name}
+              </h1>
+              <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 mt-1.5 flex items-center gap-1">
+                <Mail size={12} />
+                <span>{profileForm.email}</span>
+              </p>
+              <span className="text-green-600 dark:text-green-400 text-[10px] font-black uppercase tracking-wider flex items-center gap-1 mt-2 bg-green-500/10 px-2 py-0.5 rounded-full w-max">
+                <ShieldCheck size={12} /> <span>Verified Operator</span>
+              </span>
             </div>
           </div>
 
           <button 
             type="button"
-            onClick={logout}
-            className="px-5 h-11 bg-red-500/10 hover:bg-red-600 border border-red-200 dark:border-red-900/40 text-red-600 hover:text-white rounded-xl transition-all font-extrabold text-xs uppercase tracking-widest cursor-pointer shadow-xs flex items-center gap-2 shrink-0"
+            onClick={logout} 
+            className="flex items-center gap-1.5 text-xs font-bold px-4 py-2 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/50 rounded-xl transition-colors border-0 cursor-pointer shadow-2xs shrink-0"
           >
-            <LogOut className="w-3.5 h-3.5 animate-pulse" />
+            <LogOut size={14} />
             <span>Logout Session</span>
           </button>
         </div>
 
-        {/* COMPOSITE SPLIT CONTAINER ROWS */}
+        {/* CONTROLS LAYOUT SPLIT GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 w-full items-start">
-                  {/* LEFT COLUMN PANEL: PROFILE FORMS */}
-          <div className="lg:col-span-4 space-y-6 w-full">    
+          
+          {/* LEFT CONTAINER PACK: FORMS COLUMN */}
+          <div className="lg:col-span-4 space-y-6 w-full text-left">
             
-            {/* Account Settings Input Fields Block */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 p-6 rounded-2xl shadow-sm">
-              <div className="flex items-center gap-2 mb-5 border-b border-slate-100 dark:border-slate-800/60 pb-3 text-left">
-                <Settings className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-                <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100 uppercase tracking-wide">Account Settings</h3>
-              </div>
-              <form onSubmit={handleProfileSubmit} className="space-y-4 text-left">
-                <div>
-                  <label className="block text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Display Name</label>
-                  <input type="text" name="name" value={profileForm.name} onChange={handleProfileChange} required className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 rounded-xl text-xs text-slate-800 dark:text-white font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all" />
-                </div>
-                <div>
-                  <label className="block text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Email Address</label>
-                  <input type="email" name="email" value={profileForm.email} disabled className="w-full px-4 py-2.5 border border-slate-100 dark:border-slate-800/60 bg-slate-100/40 dark:bg-slate-950/40 text-slate-400 dark:text-slate-600 text-xs font-semibold rounded-xl cursor-not-allowed select-none" />
-                </div>
-                <button type="submit" disabled={updatingProfile} className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 py-3 rounded-xl text-xs font-extrabold text-white uppercase tracking-widest shadow-md shadow-blue-600/10 transition-all cursor-pointer h-11">
-                  {updatingProfile ? "Saving Profile..." : "Update Details"}
-                </button>
-              </form>
-            </div>
+                        {/* PROFILE CONFIG PANEL */}
+                          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-6 rounded-3xl shadow-xs">
+  <h2 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+    <Settings size={15} className="text-slate-400" /> <span>Profile Credentials</span>
+  </h2>
 
-            {/* Password Security Modifiers Card */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 p-6 rounded-2xl shadow-sm">
-              <div className="flex items-center gap-2 mb-5 border-b border-slate-100 dark:border-slate-800/60 pb-3 text-left">
-                <KeyRound className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-                <h3 className="font-bold text-sm text-slate-800 dark:text-white tracking-tight uppercase tracking-wide">Change Password</h3>
-              </div>
-              <form onSubmit={handleSecuritySubmit} className="space-y-4 text-left">
-                <div>
-                  <label className="block text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Current Password</label>
-                  <input type="password" name="currentPassword" value={securityForm.currentPassword} onChange={handleSecurityChange} className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 rounded-xl text-xs text-slate-800 dark:text-white font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all" />
-                </div>
-                <div>
-                  <label className="block text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">New Password</label>
-                  <input type="password" name="newPassword" value={securityForm.newPassword} onChange={handleSecurityChange} className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 rounded-xl text-xs text-slate-800 dark:text-white font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all" />
-                </div>
-                <div>
-                  <label className="block text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Confirm New Password</label>
-                  <input type="password" name="confirmPassword" value={securityForm.confirmPassword} onChange={handleSecurityChange} className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 rounded-xl text-xs text-slate-800 dark:text-white font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all" />
-                </div>
-                <button type="submit" disabled={updatingPassword} className="w-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 disabled:opacity-50 py-3 rounded-xl text-xs font-extrabold text-slate-700 dark:text-slate-200 uppercase tracking-widest border border-slate-200 dark:border-slate-700 shadow-sm transition-all cursor-pointer h-11">
-                  {updatingPassword ? "Modifying..." : "Update Password"}
-                </button>
-              </form>
-            </div>
+  <form onSubmit={handleProfileSubmit} className="space-y-3.5">
+    <div className="relative w-full h-11">
+      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 z-10" />
+      <input
+        type="text"
+        required
+        value={profileForm.name || ""}
+        onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+        placeholder="Enter your name"
+        className="w-full h-full pl-10 pr-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-transparent text-slate-800 dark:text-white text-xs font-semibold outline-none focus:border-blue-500 transition-all placeholder:text-slate-400"
+      />
+    </div>
 
-          </div>
+    <div className="relative w-full h-11">
+      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+      <input
+        value={profileForm.email || ""}
+        disabled
+        placeholder="System Email"
+        className="w-full h-full pl-10 pr-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-950 text-slate-400 dark:text-slate-500 text-xs font-semibold opacity-60 cursor-not-allowed"
+      />
+    </div>
 
-          {/* 📊 RIGHT COLUMN AREA: DYNAMIC PROPERTY TAB LIST FLUID PANELS */}
-          <div className="lg:col-span-8 space-y-6 w-full">
-            
-            {/* Tab Selection Row Toggles */}
-            <div className="flex border-b border-slate-200 dark:border-slate-800 gap-4 w-full justify-start items-center">
-              <button
+    <label className="border border-dashed border-slate-200 dark:border-slate-800 rounded-xl p-3.5 flex items-center justify-center bg-slate-50/50 dark:bg-slate-950/20 hover:bg-slate-50 dark:hover:bg-slate-950/40 transition-colors cursor-pointer group w-full gap-2 text-xs font-bold text-slate-600 dark:text-slate-400">
+      <UploadCloud className="w-4 h-4 text-slate-400" />
+      <span>Choose Profile Avatar</span>
+      <input type="file" accept="image/*" onChange={handleAvatarFileSelection} className="hidden" />
+    </label>
+
+    <button 
+      type="submit"
+      disabled={updatingProfile}
+      className="w-full h-11 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/40 text-white font-extrabold uppercase text-xs tracking-wider rounded-xl transition-all shadow-xs border-0 cursor-pointer flex items-center justify-center gap-2"
+    >
+      <Save size={14} />
+      <span>{updatingProfile ? "Saving Metadata..." : "Save Identity Changes"}</span>
+    </button>
+  </form>
+</div>
+
+
+
+
+            <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-6 rounded-3xl shadow-xs">
+  <h2 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+    <KeyRound size={15} className="text-slate-400" /> <span>Security Matrix</span>
+  </h2>
+
+  <form onSubmit={handleSecuritySubmit} className="space-y-3.5">
+    <div className="relative w-full h-11">
+      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+      <input
+        type={showCurrentPassword ? "text" : "password"}
+        required
+        placeholder="Current Account Password"
+        name="currentPassword"
+        value={securityForm.currentPassword}
+        onChange={handleSecurityChange}
+        className="w-full h-full pl-10 pr-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all bg-transparent outline-none"
+      />
+      <button
+        type="button"
+        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors bg-transparent border-0 cursor-pointer outline-none flex items-center justify-center"
+      >
+        {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+      </button>
+    </div>
+
+    <div className="relative w-full h-11">
+      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+      <input
+        type={showNewPassword ? "text" : "password"}
+        required
+        placeholder="New Account Password"
+        name="newPassword"
+        value={securityForm.newPassword}
+        onChange={handleSecurityChange}
+        className="w-full h-full pl-10 pr-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all bg-transparent outline-none"
+      />
+      <button
+        type="button"
+        onClick={() => setShowNewPassword(!showNewPassword)}
+        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors bg-transparent border-0 cursor-pointer outline-none flex items-center justify-center"
+      >
+        {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+      </button>
+    </div>
+
+    <div className="relative w-full h-11">
+      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+      <input
+        type={showConfirmPassword ? "text" : "password"}
+        required
+        placeholder="Confirm New Password"
+        name="confirmPassword"
+        value={securityForm.confirmPassword}
+        onChange={handleSecurityChange}
+        className="w-full h-full pl-10 pr-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all bg-transparent outline-none"
+      />
+      <button
+        type="button"
+        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors bg-transparent border-0 cursor-pointer outline-none flex items-center justify-center"
+      >
+        {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+      </button>
+    </div>
+
+    <button
+      type="submit"
+      disabled={updatingPassword}
+      className="w-full h-11 bg-slate-800 hover:bg-slate-900 disabled:bg-slate-800/40 text-white font-extrabold uppercase text-xs tracking-wider rounded-xl transition-all shadow-xs border-0 cursor-pointer flex items-center justify-center gap-2"
+    >
+      <KeyRound size={14} />
+      <span>{updatingPassword ? "Dispatching Cipher..." : "Update Security Cipher"}</span>
+    </button>
+  </form>
+</div>
+</div>
+
+
+                    {/* RIGHT CONTAINER PACK: TAB PANEL VISIBILITY COLUMN */}
+          <div className="lg:col-span-8 space-y-6 w-full text-left">
+            <div className="flex gap-2 border-b border-slate-200 dark:border-slate-800/80 pb-3">
+              <button 
                 type="button"
                 onClick={() => setActiveTab("listings")}
-                className={`pb-3 font-extrabold text-xs uppercase tracking-wider cursor-pointer transition-all border-b-2 px-2 flex items-center gap-1.5 ${
-                  activeTab === "listings" ? "border-blue-600 text-blue-600 dark:border-blue-500 dark:text-blue-500" : "border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                }`}
+                className={`flex items-center gap-1.5 px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl border-0 cursor-pointer transition-all ${activeTab === "listings" ? "bg-blue-600 text-white shadow-xs" : "bg-white dark:bg-slate-900 text-slate-500 hover:text-slate-700"}`}
               >
-                <Building2 className="w-3.5 h-3.5" />
-                <span>My Listings ({myProperties.length})</span>
+                <Building2 size={14} />
+                <span>Your Listings</span>
               </button>
-              <button
+              
+              <button 
                 type="button"
                 onClick={() => setActiveTab("favorites")}
-                className={`pb-3 font-extrabold text-xs uppercase tracking-wider cursor-pointer transition-all border-b-2 px-2 flex items-center gap-1.5 ${
-                  activeTab === "favorites" ? "border-red-500 text-red-500" : "border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                }`}
+                className={`flex items-center gap-1.5 px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl border-0 cursor-pointer transition-all ${activeTab === "favorites" ? "bg-red-500 text-white shadow-xs" : "bg-white dark:bg-slate-900 text-slate-500 hover:text-slate-700"}`}
               >
-                <Heart className="w-3.5 h-3.5" />
-                <span>My Bookmarks ({cleanFavoritesList.length})</span>
+                <Heart size={14} />
+                <span>Your Bookmarks</span>
               </button>
             </div>
 
-            {/* Render Content Grid Panels Conditionally */}
             {tabLoading ? (
-              <p className="text-slate-400 dark:text-slate-500 text-xs font-semibold animate-pulse italic py-12 text-center w-full">
-                Synchronizing data loop index records...
-              </p>
+              <div className="flex justify-center py-20 w-full">
+                <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+              </div>
             ) : paginatedList.length === 0 ? (
-              <p className="text-slate-400 dark:text-slate-500 text-xs font-semibold italic py-16 bg-white dark:bg-slate-900/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 text-center w-full shadow-xs">
-                No indexed parameters found inside this workspace folder layer.
-              </p>
+              <div className="text-center py-20 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900/40 w-full flex flex-col items-center justify-center">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">No corresponding entries discovered</p>
+              </div>
             ) : (
-              <>
-                {/* 🎯 PACKED GRID MATRIX: Expanded dynamically from 2 columns to a sleek 3 columns layout strategy on desktop sizes */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 pt-2 justify-items-center sm:justify-items-start w-full">
-                  {paginatedList.map((property) => (
-                    <PropertyCard key={property._id} item={property} />
+              <div className="space-y-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 w-full justify-items-center sm:justify-items-start">
+                  {paginatedList.map((item) => (
+                    <div key={item._id} className="w-full max-w-[312px]">
+                      <PropertyCard item={item} />
+                    </div>
                   ))}
                 </div>
 
-                {/* 🎯 COMPACT PROFILE FEED PAGINATION CONTROL PANEL */}
+                {/* INTEGRATED INTERFACE PAGINATION DECK CONTROLS */}
                 {totalPages > 1 && (
-                  <div className="flex items-center justify-center gap-2 mt-8 pt-6 border-t border-slate-200 dark:border-slate-800/60 w-full select-none">
+                  <div className="flex justify-center items-center gap-3 pt-4 w-full border-t border-slate-100 dark:border-slate-900">
                     <button
                       type="button"
                       disabled={currentPage === 1}
-                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                      className="h-8 px-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-40 font-extrabold text-[10px] uppercase tracking-wider rounded-xl transition-all cursor-pointer disabled:cursor-not-allowed shadow-xs"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      className="w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-center bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed border-0 outline-none"
                     >
-                      &larr; Prev
+                      <ChevronLeft size={16} />
                     </button>
-
-                    {Array.from({ length: totalPages }).map((_, index) => {
-                      const pageNum = index + 1;
-                      return (
-                        <button
-                          key={pageNum}
-                          type="button"
-                          onClick={() => setCurrentPage(pageNum)}
-                          className={`w-8 h-8 font-black text-xs transition-all border rounded-xl cursor-pointer flex items-center justify-center ${
-                            currentPage === pageNum
-                              ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-600/10"
-                              : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-950/40"
-                          }`}
-                        >
-                          {pageNum}
-                        </button>
-                      );
-                    })}
-
-                                       <button
+                    <div className="text-xs font-mono font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider">
+                      Page {currentPage} of {totalPages}
+                    </div>
+                    <button
                       type="button"
                       disabled={currentPage === totalPages}
-                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                      className="h-8 px-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-40 font-extrabold text-[10px] uppercase tracking-wider rounded-xl transition-all cursor-pointer disabled:cursor-not-allowed shadow-xs"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      className="w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-center bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed border-0 outline-none"
                     >
-                      Next &rarr;
+                      <ChevronRight size={16} />
                     </button>
                   </div>
                 )}
-              </>
+              </div>
             )}
-
-            {/* SUBMIT MISSION FEEDBACK CONTAINER BLOCK */}
-            <div className="mt-12 border-t border-slate-200 dark:border-slate-800 pt-8 w-full">
-              <div className="flex items-center gap-2 text-left mb-1">
-                <MessageSquare className="w-5 h-5 text-slate-400 dark:text-slate-500" />
-                <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight">Submit Platform Feedback</h3>
-              </div>
-              <p className="text-xs font-medium text-slate-400 dark:text-slate-500 mb-6 text-left pl-7">Write a review to tell other users about your marketplace experience</p>
-              <div className="w-full bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-6 rounded-2xl shadow-sm">
-                <AddReviewForm />
-              </div>
-            </div>
-
           </div>
         </div>
 
+        {/* FEEDBACK SECTION */}
+        <div className="mt-16 border-t border-slate-200 dark:border-slate-800/80 pt-10 text-left w-full">
+          <div className="flex items-center gap-2 mb-4">
+            <MessageSquare className="w-5 h-5 text-blue-600" />
+            <h2 className="text-base font-black uppercase tracking-wider text-slate-900 dark:text-white">Leave Platform Feedback</h2>
+          </div>
+          <AddReviewForm />
+        </div>
       </section>
     </div>
   );

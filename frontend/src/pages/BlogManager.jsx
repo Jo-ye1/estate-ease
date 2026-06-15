@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { Save, Plus, Trash2, Upload, ImageIcon, BookOpen } from 'lucide-react';
 
-export default function BlogManager({ darkMode }) {
-  // --- 1. State Hooks initialized natively with LocalStorage data or fallbacks ---
+export default function BlogManager() {
   const [journalTitle, setJournalTitle] = useState(() => localStorage.getItem('blog_title') || "The Estate Ease Journal");
   const [journalSub, setJournalSub] = useState(() => localStorage.getItem('blog_subheading') || "Stay up to date with professional market insights, broker methodologies, and regulatory tutorials.");
   
@@ -16,12 +15,12 @@ export default function BlogManager({ darkMode }) {
         date: "2026-05-12",
         readTime: "5 MIN READ",
         excerpt: "Explore how contemporary real estate developers are leveraging smart materials and ecological grid panels.",
+        content: "Detailed sustainable architecture article copy parameter block placeholder context...",
         image: ""
       }
     ];
   });
 
-  // --- 2. LocalStorage Save Triggers ---
   const handleSaveHeaders = (e) => {
     e.preventDefault();
     localStorage.setItem('blog_title', journalTitle);
@@ -32,18 +31,16 @@ export default function BlogManager({ darkMode }) {
   const handleSaveAllPosts = (e) => {
     e.preventDefault();
     localStorage.setItem('blog_posts', JSON.stringify(posts));
-    alert("All articles and thumbnail binary structures synchronized!");
+    alert("All articles and detailed text content structures synchronized!");
   };
 
-  // --- 3. Base64 File Reader Hook System ---
   const handleCardImageUpload = (idx, e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onloadend = () => {
       const updated = [...posts];
-      updated[idx].image = reader.result; // Saves pure string data link code safely
+      updated[idx].image = reader.result;
       setPosts(updated);
     };
     reader.readAsDataURL(file);
@@ -65,26 +62,24 @@ export default function BlogManager({ darkMode }) {
         date: new Date().toISOString().split('T')[0],
         readTime: "5 MIN READ",
         excerpt: "",
+        content: "", // Initial empty text field channel
         image: ""
       }
     ]);
   };
 
   const cardBgClass = "bg-white dark:bg-[#0a101d] border border-slate-200/60 dark:border-slate-800/80 p-6 rounded-2xl mb-8 shadow-xs";
-  const inputClass = "w-full bg-slate-50 dark:bg-[#111927] border border-slate-200 dark:border-gray-800 text-slate-900 dark:text-white rounded-xl p-3 text-sm font-medium outline-none focus:border-blue-500 transition-colors";
+  const inputClass = "w-full bg-slate-50 dark:bg-[#111927] border border-slate-200 dark:border-gray-800 text-slate-900 dark:text-white rounded-xl p-3 text-sm font-medium outline-none focus:border-blue-500 transition-colors placeholder:text-slate-400";
   const labelClass = "block text-xs font-bold tracking-wider uppercase text-slate-400 dark:text-slate-500 mb-2 text-left";
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-10 w-full text-left">
       
-      {/* SECTION A: HEADER STRINGS CONTROL */}
       <form onSubmit={handleSaveHeaders} className={cardBgClass}>
         <div className="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-gray-800 pb-4">
-          <div className="text-left">
-            <h3 className="font-bold text-sm uppercase tracking-wider text-blue-600 dark:text-blue-500 flex items-center gap-1.5">
-              <BookOpen className="w-4 h-4" /> Journal Header Context
-            </h3>
-          </div>
+          <h3 className="font-bold text-sm uppercase tracking-wider text-blue-600 dark:text-blue-500 flex items-center gap-1.5">
+            <BookOpen className="w-4 h-4" /> Journal Header Context
+          </h3>
           <button type="submit" className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider border-0 cursor-pointer transition-all">
             <Save className="w-3.5 h-3.5" /> Save Headers
           </button>
@@ -101,11 +96,10 @@ export default function BlogManager({ darkMode }) {
         </div>
       </form>
 
-      {/* SECTION B: INDEPENDENT ARTICLES COLLECTION GRID EDITORS */}
       <div className="flex justify-between items-center mb-4 mt-8">
-        <div className="text-left">
+        <div>
           <h4 className="font-black text-sm uppercase tracking-wider">Active Published Articles Grid ({posts.length})</h4>
-          <p className="text-xs text-slate-400">Insert custom attributes, dates, descriptions and upload binary cover cards</p>
+          <p className="text-xs text-slate-400">Insert custom attributes, dates, full details, and upload binary cover cards</p>
         </div>
         <button
           type="button"
@@ -131,7 +125,6 @@ export default function BlogManager({ darkMode }) {
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
               
-              {/* Thumbnail Binary Uploader Box */}
               <div className="lg:col-span-3 flex flex-col gap-2">
                 <label className={labelClass}>Card Cover Image</label>
                 <label className="w-full aspect-[4/3] border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl flex flex-col items-center justify-center gap-2 cursor-pointer relative overflow-hidden group bg-slate-50 dark:bg-slate-950/20 hover:border-blue-500 transition-colors">
@@ -152,7 +145,6 @@ export default function BlogManager({ darkMode }) {
                 </label>
               </div>
 
-              {/* Text Context Form Parameters (9 Columns Remaining) */}
               <div className="lg:col-span-9 grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className={labelClass}>Category / Tag Name</label>
@@ -168,11 +160,17 @@ export default function BlogManager({ darkMode }) {
                 </div>
                 <div className="sm:col-span-3">
                   <label className={labelClass}>Article Headline Title</label>
-                  <input type="text" value={post.title || ''} onChange={e => handleFieldChange(idx, 'title', e.target.value)} className={inputClass} placeholder="Enter article dynamic title link copy headline..." />
+                  <input type="text" value={post.title || ''} onChange={e => handleFieldChange(idx, 'title', e.target.value)} className={inputClass} placeholder="Enter article headline text..." />
                 </div>
                 <div className="sm:col-span-3">
                   <label className={labelClass}>Short Index Page Excerpt Summary</label>
-                  <textarea rows="3" value={post.excerpt || ''} onChange={e => handleFieldChange(idx, 'excerpt', e.target.value)} className={inputClass} placeholder="Enter article synopsis copy..." />
+                  <textarea rows="2" value={post.excerpt || ''} onChange={e => handleFieldChange(idx, 'excerpt', e.target.value)} className={inputClass + " resize-none text-xs"} placeholder="Enter short catalog preview summary text..." />
+                </div>
+                
+                {/* 👑 NEW: HIGH UTILITY FULL TEXT CONTENT ARCHITECTURE SLOT */}
+                <div className="sm:col-span-3">
+                  <label className={labelClass}>Full Detailed Article Body Copy Content</label>
+                  <textarea rows="6" value={post.content || ''} onChange={e => handleFieldChange(idx, 'content', e.target.value)} className={inputClass + " resize-none text-xs leading-relaxed"} placeholder="Type or paste the complete expanded article content text body context details here..." />
                 </div>
               </div>
 
@@ -180,11 +178,10 @@ export default function BlogManager({ darkMode }) {
           </div>
         ))}
 
-        <button type="submit" className="w-full h-12 bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-95 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center justify-center gap-2 border-0 cursor-pointer">
+        <button type="submit" className="w-full h-12 bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-95 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center justify-center gap-2 border-0 cursor-pointer outline-none">
           <Save className="w-4 h-4" /> Synchronize All Journal Matrix Cards
         </button>
       </form>
-
-    </div>
-  );
+</div>
+);
 }

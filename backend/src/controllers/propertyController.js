@@ -1,137 +1,181 @@
-import Property from "../models/PropertyModel.js";
+import Property from "../models/Property.js";
 import mongoose from "mongoose";
 import fs from "fs";
 import path from "path";
 
-// @desc    Create a new property listing
-// @route   POST /api/properties
-// @access  Private
 export const createProperty = async (req, res) => {
   try {
-    // 🚀 FIXED: Added "status" to the destructuring list right here
-    const { title, description, price, location, type, status, bedrooms, bathrooms, area } = req.body;
-
-    if (!req.user || !req.user._id) {
-      return res.status(401).json({ 
-        message: "Authentication tracking failed. Please log out, log back in, and try again." 
-      });
-    }
+    const {
+      title,
+      description,
+      listingType,
+      propertyCategory,
+      location,
+      bedrooms,
+      bathrooms,
+      area,
+      leaseDuration,
+      maxGuests,
+      availabilityStatus,
+      pricing,
+    } = req.body;
 
     const property = await Property.create({
       title,
       description,
-      price: Number(price),
+      listingType,
+      propertyCategory,
       location,
-      type,
-      status: status || "For Sale", // 👈 FIXED: Saves the status cleanly inside MongoDB records
-      bedrooms: Number(bedrooms),
-      bathrooms: Number(bathrooms),
-      area: Number(area),
-      owner: req.user._id, 
+      bedrooms,
+      bathrooms,
+      area,
+      leaseDuration,
+      maxGuests,
+      availabilityStatus: availabilityStatus || "available",
+      listingStatus: req.body.listingStatus || "draft",
+      pricing,
+      owner: req.user._id,
+      images: [],
     });
 
-    res.status(201).json(property); 
+    res.status(201).json(property);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(400).json({
+      message: error.message,
+    });
   }
 };
 
-// @desc    Upload multiple asset images simultaneously locally
-// @route   POST /api/properties/:id/upload
-// @access  Private
 export const uploadPropertyImage = async (req, res) => {
   try {
-    // 🛡️ Handles both single file or array parameters seamlessly
-    const files = req.files || (req.file ? [req.file] : []);
-
-    if (files.length === 0) {
-      return res.status(400).json({ message: "No picture files uploaded." });
-    }
-
     const property = await Property.findById(req.params.id);
-    if (!property) return res.status(404).json({ message: "Listing not found." });
 
-    // 🛡️ SECURITY GUARD: Verify the active session user actually owns this listing
-    if (property.owner.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        message: "Forbidden: You are not authorized to add images to this property listing."
+    if (!property) {
+      return res.status(404).json({
+        message: "Property not found",
       });
     }
 
-    if (!property.images || !Array.isArray(property.images)) {
-      property.images = [];
+    if (
+      property.owner.toString() !== req.user._id.toString()
+    ) {
+      return res.status(401).json({
+        message: "Unauthorized",
+      });
     }
 
-    // ⚡ Iterate over the multipart disk stream array data to map the local path URLs
-    files.forEach((file) => {
-      const localUrlPath = `${req.protocol}://${req.get("host")}/uploads/${file.filename}`;
-      property.images.push(localUrlPath);
-    });
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        message: "No image uploaded",
+      });
+    }
+
+    const imagePaths = req.files.map(
+      (file) => `/uploads/${file.filename}`
+    );
+
+    property.images.push(...imagePaths);
 
     await property.save();
-    res.json({ message: "Gallery images uploaded successfully!", images: property.images, property });
+
+    res.json(property);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      message: error.message,
+    });
   }
 };
 
-// @desc    Get all properties with advanced query filtering pipelines (Phase 10 Upgraded)
-// @route   GET /api/properties
-// @access  Public
 export const getProperties = async (req, res) => {
   try {
-    const query = {};
-    const { search, location, type, bedrooms, minPrice, maxPrice } = req.query;
+    const {
+      search,
+      location,
+      listingType,
+      type,
+      propertyCategory,
+      bedrooms,
+      minPrice,
+      maxPrice,
+    } = req.query;
 
-    // ⚡ Multi-Field Text Search (Matches words inside Title OR Description)
+    const query = {
+      listingStatus: "published",
+    };
+
+    const andConditions = [];
+
     if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { description: { $regex: search, $options: "i" } }
-      ];
+      andConditions.push({
+        $or: [
+          {
+            title: {
+              $regex: search,
+              $options: "i",
+            },
+          },
+          {
+            description: {
+              $regex: search,
+              $options: "i",
+            },
+          },
+        ],
+      });
     }
 
-    // Case-insensitive partial matching for explicit location strings
     if (location) {
-      query.location = { $regex: location, $options: "i" };
+      query.location = {
+        $regex: location,
+        $options: "i",
+      };
     }
 
-    // Exact category dropdown filtering
-    if (type && type !== "All") {
-      query.type = type;
+    const activeOperation = listingType || type;
+    if (activeOperation && activeOperation !== "All" && activeOperation !== "all") {
+      query.listingType = activeOperation.toLowerCase();
     }
 
-    // Exact primitive number match mapping
-    if (bedrooms && bedrooms !== "All") {
+    if (propertyCategory && propertyCategory !== "All" && propertyCategory !== "all") {
+      query.propertyCategory = propertyCategory.toLowerCase();
+    }
+
+    if (bedrooms && bedrooms !== "All" && bedrooms !== "all") {
       query.bedrooms = Number(bedrooms);
     }
 
-    // Dynamic price range building ($gte = Greater Than or Equal To, $lte = Less Than or Equal To)
     if (minPrice || maxPrice) {
-      query.price = {};
-      if (minPrice) query.price.$gte = Number(minPrice);
-      if (maxPrice) query.price.$lte = Number(maxPrice);
+      const priceConditions = [
+        {
+          "pricing.salePrice": {
+            ...(minPrice && { $gte: Number(minPrice) }),
+            ...(maxPrice && { $lte: Number(maxPrice) }),
+          },
+        },
+        {
+          "pricing.monthlyRent": {
+            ...(minPrice && { $gte: Number(minPrice) }),
+            ...(maxPrice && { $lte: Number(maxPrice) }),
+          },
+        },
+        {
+          "pricing.dailyRate": {
+            ...(minPrice && { $gte: Number(minPrice) }),
+            ...(maxPrice && { $lte: Number(maxPrice) }),
+          },
+        }
+      ];
+      andConditions.push({ $or: priceConditions });
+    }
+
+    if (andConditions.length > 0) {
+      query.$and = andConditions;
     }
 
     const properties = await Property.find(query)
       .sort({ createdAt: -1 })
-      .limit(9)
-      .populate("owner", "name email");
+      .populate("owner", "name email avatar");
 
-    res.json(properties);
-  } catch (error) {
-    res.status(500).json({ message: `Database Search Engine Error: ${error.message}` });
-  }
-};
-
-// @desc    Get properties owned by the authenticated user
-// @route   GET /api/properties/my-properties
-// @access  Private
-export const getMyProperties = async (req, res) => {
-  try {
-    const properties = await Property.find({
-      owner: req.user._id,
-    });
     res.json(properties);
   } catch (error) {
     res.status(500).json({
@@ -140,127 +184,217 @@ export const getMyProperties = async (req, res) => {
   }
 };
 
-// @desc    Get single property by ID
-// @route   GET /api/properties/:id
-// @access  Public
-export const getPropertyById = async (req, res) => {
-  try {
-    const property = await Property.findById(req.params.id).populate("owner", "name email");
-    if (!property) {
-      return res.status(404).json({ message: "Property not found" });
-    }
-    res.json(property);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
 
-// @desc    Update a property
-// @route   PUT /api/properties/:id
-// @access  Private
+
 export const updateProperty = async (req, res) => {
   try {
     const property = await Property.findById(req.params.id);
 
     if (!property) {
-      return res.status(404).json({ message: "Property not found" });
+      return res.status(404).json({
+        message: "Property not found",
+      });
     }
 
-    if (property.owner.toString() !== req.user._id.toString()) {
-      return res.status(401).json({ message: "Not authorized to update this property" });
+    if (
+      property.owner.toString() !== req.user._id.toString()
+    ) {
+      return res.status(401).json({
+        message: "Unauthorized",
+      });
     }
 
-    const updatedProperty = await Property.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
+    const updatedProperty =
+      await Property.findByIdAndUpdate(
+        req.params.id,
+        req.body,
+        {
+          new: true,
+          runValidators: true,
+        }
+      ).populate("owner", "name email avatar");
 
     res.json(updatedProperty);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      message: error.message,
+    });
   }
 };
 
-// @desc    Delete a property and clean up its local hard drive image assets
-// @route   DELETE /api/properties/:id
-// @access  Private
 export const deleteProperty = async (req, res) => {
   try {
     const property = await Property.findById(req.params.id);
 
     if (!property) {
-      return res.status(404).json({ message: "Property not found" });
+      return res.status(404).json({
+        message: "Property not found",
+      });
     }
 
-    if (property.owner.toString() !== req.user._id.toString()) {
-      return res.status(401).json({ message: "Not authorized to delete this property" });
+    if (
+      property.owner.toString() !== req.user._id.toString()
+    ) {
+      return res.status(401).json({
+        message: "Unauthorized",
+      });
     }
 
-    if (property.images && property.images.length > 0) {
-      for (const imageUrl of property.images) {
-        try {
-          const filename = imageUrl.split("/uploads/");
-          const localFilePath = path.join(process.cwd(), "uploads", filename);
+    for (const image of property.images) {
+      const filename = image.split("/uploads/")[1];
 
-          if (fs.existsSync(localFilePath)) {
-            fs.unlinkSync(localFilePath);
-          }
-        } catch (fileSystemErr) {
-          console.error("Local disk file deletion failed:", fileSystemErr.message);
+      if (filename) {
+        const filePath = path.join(
+          process.cwd(),
+          "uploads",
+          filename
+        );
+
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
         }
       }
     }
 
     await property.deleteOne();
-    res.json({ message: "Property and associated local images removed successfully" });
+
+    res.json({
+      message: "Property deleted successfully",
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      message: error.message,
+    });
   }
 };
 
-// @desc    Get related properties based on type or location (excluding current)
-// @route   GET /api/properties/:id/related
-// @access  Public
 export const getRelatedProperties = async (req, res) => {
   try {
     const property = await Property.findById(req.params.id);
 
     if (!property) {
-      return res.status(404).json({ message: "Property not found" });
+      return res.status(404).json({
+        message: "Property not found",
+      });
     }
 
     const related = await Property.find({
       _id: { $ne: property._id },
+      listingStatus: "published",
       $or: [
-        { type: property.type },
-        { location: { $regex: property.location, $options: "i" } }
-      ]
-    })
-    .limit(3)
-    .populate("owner", "name email");
+        {
+          propertyCategory:
+            property.propertyCategory,
+        },
+        {
+          location: {
+            $regex: property.location,
+            $options: "i",
+          },
+        },
+      ],
+    }).populate("owner", "name email avatar");
 
     res.json(related);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      message: error.message,
+    });
   }
 };
 
-// @desc    Get real-time total metrics for landing page counters
-// @route   GET /api/properties/stats
-// @access  Public
 export const getStats = async (req, res) => {
   try {
-    const totalProperties = await Property.countDocuments();
+    const totalProperties =
+      await Property.countDocuments();
 
-    const totalUsers = await mongoose.connection.db.collection("users").countDocuments().catch(() => 12);
-    const totalFavorites = await mongoose.connection.db.collection("favorites").countDocuments().catch(() => 8);
+    const totalUsers =
+      await mongoose.connection.db
+        .collection("users")
+        .countDocuments();
+
+    const totalFavorites =
+      await mongoose.connection.db
+        .collection("favorites")
+        .countDocuments();
 
     res.json({
       totalProperties,
-      totalUsers: totalUsers || 12,
-      totalFavorites: totalFavorites || 8,
+      totalUsers,
+      totalFavorites,
     });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+export const updatePropertyStatus = async (
+  req,
+  res
+) => {
+  try {
+    const { listingStatus } = req.body;
+
+    const property = await Property.findById(
+      req.params.id
+    );
+
+    if (!property) {
+      return res.status(404).json({
+        message: "Property not found",
+      });
+    }
+
+    if (
+      property.owner.toString() !== req.user._id.toString()
+    ) {
+      return res.status(401).json({
+        message: "Unauthorized",
+      });
+    }
+
+    property.listingStatus = listingStatus;
+
+    await property.save();
+
+    res.json(property);
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+export const getMyProperties = async (req, res) => {
+  try {
+    const properties = await Property.find({
+      owner: req.user._id,
+    })
+      .sort({ createdAt: -1 })
+      .populate("owner", "name email avatar");
+
+    res.json(properties);
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+export const getPropertyById = async (req, res) => {
+  try {
+    const property = await Property.findById(
+      req.params.id
+    ).populate("owner", "name email avatar");
+
+    if (!property) {
+      return res.status(404).json({
+        message: "Property not found",
+      });
+    }
+    res.json(property);
   } catch (error) {
     res.status(500).json({
       message: error.message,

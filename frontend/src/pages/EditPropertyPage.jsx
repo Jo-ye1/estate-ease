@@ -1,8 +1,12 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Edit3, FileText, UploadCloud, ChevronLeft, Save } from "lucide-react"; // 🎯 MODERNIZED: Swapped text emojis for premium vectors
-import { getPropertyById, updateProperty, uploadPropertyImage } from "../services/propertyService";
-import Navbar from "@/components/home/Navbar"; // 🎯 MODULAR: Integrated core shell header
+import { UploadCloud, ChevronLeft, Save, FileText, MapPin, Bed, Bath, Maximize, DollarSign, Calendar, Sliders } from "lucide-react";
+import {
+  getPropertyById,
+  updateProperty,
+  uploadPropertyImage,
+} from "../services/propertyService";
+import Navbar from "@/components/home/Navbar";
 
 const EditPropertyPage = () => {
   const { id } = useParams();
@@ -10,114 +14,135 @@ const EditPropertyPage = () => {
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  
-  // Stored Image Reference States
-  const [existingImage, setExistingImage] = useState(""); 
+
+  const [existingImage, setExistingImage] = useState("");
   const [newImageFile, setNewImageFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(""); // 📷 Handles instant local preview generation for new uploads
-  
+  const [previewUrl, setPreviewUrl] = useState("");
+
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    price: "",
+    listingType: "sale",
+    propertyCategory: "house",
     location: "",
-    type: "House",
-    status: "For Sale", // Ensure listing status tracking remains consistent
-    bedrooms: "",
-    bathrooms: "",
-    area: "",
+    bedrooms: 0,
+    bathrooms: 0,
+    area: 0,
+    leaseDuration: "",
+    availabilityStatus: "available",
+    salePrice: "",
+    monthlyRent: "",
+    dailyRate: "",
   });
 
   useEffect(() => {
-    const loadPropertyData = async () => {
+    const loadProperty = async () => {
       try {
-        setLoading(true);
-        const data = await getPropertyById(id);
-        
+        const property = await getPropertyById(id);
+
         setFormData({
-          title: data.title || "",
-          description: data.description || "",
-          price: data.price || "",
-          location: data.location || "",
-          type: data.type || "House",
-          status: data.status || "For Sale",
-          bedrooms: data.bedrooms || "",
-          bathrooms: data.bathrooms || "",
-          area: data.area || "",
+          title: property?.title || "",
+          description: property?.description || "",
+          listingType: property?.listingType || "sale",
+          propertyCategory: property?.propertyCategory || "house",
+          location: property?.location || "",
+          bedrooms: property?.bedrooms || 0,
+          bathrooms: property?.bathrooms || 0,
+          area: property?.area || 0,
+          leaseDuration: property?.leaseDuration || "",
+          availabilityStatus: property?.availabilityStatus || "available",
+          salePrice: property?.pricing?.salePrice || "",
+          monthlyRent: property?.pricing?.monthlyRent || "",
+          dailyRate: property?.pricing?.dailyRate || "",
         });
 
-        if (data.images && data.images.length > 0) {
-          setExistingImage(data.images[0]);
+        if (property?.images?.length > 0) {
+          const img = property.images[0];
+          setExistingImage(
+            img.startsWith("http")
+              ? img
+              : `http://localhost:5000${img}`
+          );
         }
       } catch (error) {
-        console.error("Failed to fetch property details:", error);
-        alert("Could not load the requested property details.");
+        alert(
+          error?.response?.data?.message ||
+            "Failed to load property"
+        );
         navigate("/dashboard");
       } finally {
         setLoading(false);
       }
     };
 
-    if (id) loadPropertyData();
+    loadProperty();
   }, [id, navigate]);
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
-  // ⚡ UPDATED: Captures new binary image picks and handles local URL previews seamlessly
   const handleImageChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0];
-      setNewImageFile(selectedFile);
-      setPreviewUrl(URL.createObjectURL(selectedFile));
-    }
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setNewImageFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // 🛡️ Strict Validation Safeguards for Editing
-    if (!formData.title.trim() || !formData.description.trim() || !formData.location.trim()) {
-      return alert("Text fields cannot be empty or contain only blank spaces.");
-    }
-    if (Number(formData.price) <= 0) {
-      return alert("Validation Failure: Price must be a positive number greater than 0.");
-    }
-    if (Number(formData.bedrooms) < 0 || Number(formData.bathrooms) < 0) {
-      return alert("Validation Failure: Room counts cannot be negative numbers.");
-    }
-    if (!formData.area || Number(formData.area) <= 0) {
-      return alert("Validation Failure: Area measurement must be greater than 0 sq ft.");
-    }
-
     try {
       setSubmitting(true);
 
-      const updatedPayload = {
-        ...formData,
-        price: Number(formData.price),
+      const payload = {
+        title: formData.title,
+        description: formData.description,
+        listingType: formData.listingType,
+        propertyCategory: formData.propertyCategory,
+        location: formData.location,
         bedrooms: Number(formData.bedrooms),
         bathrooms: Number(formData.bathrooms),
         area: Number(formData.area),
+        leaseDuration:
+          formData.listingType === "rent"
+            ? formData.leaseDuration
+            : undefined,
+        availabilityStatus: formData.availabilityStatus,
+        pricing: {
+          salePrice:
+            formData.listingType === "sale"
+              ? Number(formData.salePrice)
+              : undefined,
+          monthlyRent:
+            formData.listingType === "rent"
+              ? Number(formData.monthlyRent)
+              : undefined,
+          dailyRate:
+            formData.listingType === "hotel"
+              ? Number(formData.dailyRate)
+              : undefined,
+        },
       };
 
-      // STEP 1: Push structural updates text modifications to MongoDB database routing paths
-      await updateProperty(id, updatedPayload);
+      await updateProperty(id, payload);
 
-      // STEP 2: ➕ IMAGE UPDATE INTEGRATION: If a fresh file is chosen, dispatch a secondary multipart binary request stream
       if (newImageFile) {
         await uploadPropertyImage(id, newImageFile);
       }
 
-      alert("Property updated successfully!");
+      alert("Property updated successfully");
       navigate("/dashboard");
     } catch (error) {
-      console.error("Update process encountered an issue:", error);
-      alert(error.response?.data?.message || "Failed to update property listing.");
+      alert(
+        error?.response?.data?.message ||
+          "Failed updating property"
+      );
     } finally {
       setSubmitting(false);
     }
@@ -125,245 +150,298 @@ const EditPropertyPage = () => {
 
   if (loading) {
     return (
-      <div className="w-full bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors duration-200 flex flex-col select-none">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
         <Navbar />
-        <div className="flex-1 flex items-center justify-center py-32 text-center">
-          <div className="text-xs font-bold text-slate-400 dark:text-slate-600 animate-pulse uppercase tracking-widest">
-            Loading listing parameters...
-          </div>
+        <div className="flex items-center justify-center h-[80vh] text-slate-700 dark:text-white">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
         </div>
       </div>
     );
   }
 
   return (
-    // 🎯 TARGET SPEC MULTI-THEME OVERRIDE CANVAS
-    <div className="w-full bg-slate-50 dark:bg-slate-950 min-h-screen select-none text-left transition-colors duration-200 pb-24 flex flex-col">
-      
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 transition-colors duration-200 pb-20">
       <Navbar />
 
-      {/* 🎯 MAIN CANVASES FRAMEWORK ENVELOPE: Locked precisely to your global 1320px constraints */}
-      <section className="max-w-[1320px] mx-auto w-full px-4 pt-12 flex-1 flex flex-col justify-start">
-        
-        {/* LEFT FLUSH HEADER COMPONENT ROW WITH ACCENT LINE */}
-        <div className="mb-10 relative inline-block max-w-max">
-          <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-500 bg-blue-500/10 px-3 py-1 rounded-full mb-3 block w-max">
-            Modification Suite
-          </span>
-          <h1 className="text-3xl lg:text-4xl font-black text-slate-800 dark:text-white tracking-tight pb-3">
-            Edit Property <span className="text-blue-600 dark:text-blue-500">Listing</span>
-          </h1>
-          <div className="absolute bottom-0 left-0 w-1/4 h-[2px] bg-blue-600 dark:bg-blue-500 rounded-full" />
+      <section className="max-w-4xl mx-auto px-4 pt-10">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 text-left">
+          <div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 bg-blue-500/10 px-3 py-1 rounded-md mb-2 inline-block">
+              Listing Editor
+            </span>
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+              Edit Property
+            </h1>
+            <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 mt-1">
+              Modify and save changes for your active marketplace listing document records.
+            </p>
+          </div>
+          
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-1.5 text-xs font-bold px-4 py-2 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-xs w-max cursor-pointer outline-none"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            <span>Back</span>
+          </button>
         </div>
 
-        {/* COMPOSITE TWIN-COLUMN MANAGEMENT GRID */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start w-full">
+        <form onSubmit={handleSubmit} className="space-y-6">
           
-          {/* Main Core Editing Inputs form Column Panel */}
-          <div className="lg:col-span-8 w-full">
-            <form
-              onSubmit={handleSubmit}
-              className="space-y-6 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 p-6 lg:p-8 rounded-2xl shadow-sm text-left"
-            >
-              {/* Cover Display Preview Frame System */}
-              {/* 🎯 ADAPTIVE PREVIEW SYSTEM: Renders the fresh file update first, falling back to database source references if left unchanged */}
-              {(previewUrl || existingImage) && (
-                <div className="relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 h-64 bg-slate-100 dark:bg-slate-950 shadow-inner">
-                  <img 
-                    src={previewUrl || existingImage} 
-                    alt="Active Property Asset Display View" 
-                    className="w-full h-full object-cover" 
+          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 p-5 rounded-3xl shadow-xs">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white mb-3 text-left">Media Assets</h3>
+            {(previewUrl || existingImage) ? (
+              <div className="relative w-full h-[320px] bg-slate-950 rounded-2xl overflow-hidden border border-slate-200/40 dark:border-slate-800/50 group">
+                <img src={previewUrl || existingImage} alt="Preview" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                  <label className="px-4 py-2 bg-white text-slate-900 text-xs font-bold rounded-xl cursor-pointer shadow-md hover:bg-slate-100 transition-colors">
+                    Change Photo
+                    <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+                  </label>
+                </div>
+              </div>
+            ) : (
+              <label className="border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl p-12 flex flex-col items-center justify-center bg-slate-50/50 dark:bg-slate-950/20 hover:bg-slate-50 dark:hover:bg-slate-950/40 transition-colors cursor-pointer group">
+                <div className="w-12 h-12 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                  <UploadCloud className="w-5 h-5" />
+                </div>
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Upload Cover Image</span>
+                <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+              </label>
+            )}
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 p-6 rounded-3xl shadow-xs space-y-4">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white mb-2 text-left">Basic Details</h3>
+            
+            <div className="relative">
+              <FileText className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                name="title"
+                required
+                placeholder="Property Title Heading"
+                value={formData.title}
+                onChange={handleChange}
+                className="w-full h-11 pl-11 pr-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+              />
+            </div>
+
+            <div className="relative">
+              <textarea
+                name="description"
+                required
+                rows={4}
+                placeholder="Detailed listing description..."
+                value={formData.description}
+                onChange={handleChange}
+                className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all resize-none"
+              />
+            </div>
+          </div>
+
+                   <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 p-6 rounded-3xl shadow-xs grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="text-left">
+              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1.5 ml-1">Listing Operation</label>
+              <div className="relative">
+                <Sliders className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <select
+                  name="listingType"
+                  value={formData.listingType}
+                  onChange={handleChange}
+                  className="w-full h-11 pl-11 pr-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 text-xs font-bold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all cursor-pointer"
+                >
+                  <option value="sale">For Sale</option>
+                  <option value="rent">For Rent</option>
+                  <option value="hotel">Hotel Stay</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="text-left">
+              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1.5 ml-1">Financial Parameters</label>
+              
+              {formData.listingType === "sale" && (
+                <div className="relative">
+                  <DollarSign className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    name="salePrice"
+                    type="number"
+                    required
+                    placeholder="Sale Price (USD)"
+                    value={formData.salePrice}
+                    onChange={handleChange}
+                    className="w-full h-11 pl-11 pr-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
                   />
-                  <div className="absolute bottom-3 left-3 bg-slate-900/80 border border-slate-700 backdrop-blur-sm text-xs text-slate-200 px-3 py-1 rounded-md">
-                    {previewUrl ? "New Cover Selection Preview" : "Current Active Image Display"}
+                </div>
+              )}
+
+              {formData.listingType === "rent" && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input
+                      name="monthlyRent"
+                      type="number"
+                      required
+                      placeholder="Monthly Rent"
+                      value={formData.monthlyRent}
+                      onChange={handleChange}
+                      className="w-full h-11 pl-9 pr-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                    />
+                  </div>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <select
+                      name="leaseDuration"
+                      required
+                      value={formData.leaseDuration}
+                      onChange={handleChange}
+                      className="w-full h-11 pl-9 pr-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 text-xs font-bold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all cursor-pointer"
+                    >
+                      <option value="">Lease Type</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="monthly">Monthly</option>
+                      <option value="yearly">Yearly</option>
+                    </select>
                   </div>
                 </div>
               )}
 
-              {/* Title Input Row */}
-              <div>
-                <label className="block text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Property Listing Title</label>
-                <input
-                  type="text"
-                  name="title"
-                  value={formData.title}
-                  required
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 rounded-xl text-xs text-slate-800 dark:text-white font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all"
-                />
-              </div>
-
-              {/* Description Textarea Input Row */}
-              <div>
-                <label className="block text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Detailed Narrative Description</label>
-                <textarea
-                  name="description"
-                  value={formData.description}
-                  required
-                  onChange={handleChange}
-                  className="w-full h-36 px-4 py-3 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 rounded-xl text-xs text-slate-800 dark:text-white font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all resize-none leading-relaxed"
-                />
-              </div>
-
-              {/* Price and Location Responsive Split Row */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Target Price ($)</label>
+              {formData.listingType === "hotel" && (
+                <div className="relative">
+                  <DollarSign className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input
+                    name="dailyRate"
                     type="number"
-                    name="price"
-                    value={formData.price}
                     required
+                    placeholder="Daily Rate Charge (USD)"
+                    value={formData.dailyRate}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 rounded-xl text-xs text-slate-800 dark:text-white font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all"
+                    className="w-full h-11 pl-11 pr-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
                   />
                 </div>
-                                <div>
-                  <label className="block text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Physical Location / Address</label>
-                  <input
-                    type="text"
-                    name="location"
-                    value={formData.location}
-                    required
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 rounded-xl text-xs text-slate-800 dark:text-white font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* Type and Listing Status dropdowns configuration row */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Property Core Type</label>
-                  <select
-                    name="type"
-                    value={formData.type}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 rounded-xl text-xs text-slate-700 dark:text-slate-200 font-bold outline-none focus:border-blue-500 cursor-pointer transition-colors"
-                  >
-                    <option value="House">House</option>
-                    <option value="Apartment">Apartment</option>
-                    <option value="Villa">Villa</option>
-                    <option value="Hotel">Hotel</option>
-                    <option value="Warehouse">Warehouse</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Listing Status</label>
-                  <select
-                    name="status"
-                    value={formData.status || "For Sale"}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 rounded-xl text-xs text-slate-700 dark:text-slate-200 font-bold outline-none focus:border-blue-500 cursor-pointer transition-colors"
-                  >
-                    <option value="For Sale">For Sale</option>
-                    <option value="For Rent">For Rent</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* 🎯 ADDED IMAGE MODIFIER SLOT: Allows updating the background listing file image on the backend */}
-              <div>
-                <label className="block text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Update Cover Asset Image (Optional)</label>
-                <div className="relative w-full border border-dashed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100/50 dark:hover:bg-slate-900/40 transition-all rounded-xl p-5 flex items-center justify-center gap-3 cursor-pointer">
-                  <UploadCloud className="w-4 h-4 text-blue-600 dark:text-blue-500" />
-                  <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide">Choose New Binary Image File</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                  />
-                </div>
-              </div>
-
-              {/* Physical specifications amenity triple grid rows */}
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Bedrooms</label>
-                  <input
-                    type="number"
-                    name="bedrooms"
-                    value={formData.bedrooms}
-                    required
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 rounded-xl text-xs text-slate-800 dark:text-white font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Bathrooms</label>
-                  <input
-                    type="number"
-                    name="bathrooms"
-                    value={formData.bathrooms}
-                    required
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 rounded-xl text-xs text-slate-800 dark:text-white font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Area (sq ft)</label>
-                  <input
-                    type="number"
-                    name="area"
-                    value={formData.area}
-                    required
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 rounded-xl text-xs text-slate-800 dark:text-white font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* Action buttons footer section layout trigger */}
-              <div className="flex gap-4 pt-2">
-                <button
-                  type="button"
-                  onClick={() => navigate("/dashboard")}
-                  className="w-1/3 h-11 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 text-slate-700 dark:text-slate-300 font-extrabold text-[11px] uppercase tracking-wider rounded-xl bg-white dark:bg-slate-800 transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
-                >
-                  <ChevronLeft className="w-3.5 h-3.5" />
-                  <span>Cancel</span>
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="w-2/3 h-11 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all shadow-md shadow-blue-600/10 cursor-pointer flex items-center justify-center gap-1.5"
-                >
-                  {submitting ? (
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      <span>Save Modifications</span>
-                      <Save className="w-3.5 h-3.5" />
-                    </>
-                  )}
-                </button>
-              </div>
-
-            </form>
-          </div>
-
-          {/* 📄 RIGHT COLUMN PANEL: SECURITY NOTES SIDEBAR */}
-          <div className="lg:col-span-4 space-y-6 w-full text-left">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl p-6 shadow-sm">
-              <div className="flex items-center gap-2 mb-4 border-b border-slate-100 dark:border-slate-800/60 pb-3">
-                <FileText className="w-4 h-4 text-blue-600 dark:text-blue-500" />
-                <h3 className="font-bold text-xs uppercase tracking-wider text-slate-800 dark:text-white">Audit Security Notes</h3>
-              </div>
-              <ul className="space-y-3.5 text-slate-400 dark:text-slate-500 text-xs font-medium leading-relaxed list-none pl-0">
-                <li className="flex items-start gap-2.5">
-                  <span className="text-blue-600 dark:text-blue-500 text-xs select-none mt-0.5">▪</span>
-                  <span>Modifications to area parameters or listing prices re-triggers background filtering checks across index feeds.</span>
-                </li>
-                <li className="flex items-start gap-2.5">
-                  <span className="text-blue-600 dark:text-blue-500 text-xs select-none mt-0.5">▪</span>
-                  <span>Leaving the cover image slot blank preserves your existing verified background asset cover photo automatically.</span>
-                </li>
-              </ul>
+              )}
             </div>
           </div>
 
-        </div>
+          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 p-6 rounded-3xl shadow-xs grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="text-left">
+              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1.5 ml-1">Asset Architecture</label>
+              <select
+                name="propertyCategory"
+                value={formData.propertyCategory}
+                onChange={handleChange}
+                className="w-full h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 text-xs font-bold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all cursor-pointer"
+              >
+                <option value="house">House</option>
+                <option value="apartment">Apartment</option>
+                <option value="villa">Villa</option>
+                <option value="hotel">Hotel Block</option>
+                <option value="office">Office Space</option>
+                <option value="land">Commercial Land</option>
+              </select>
+            </div>
+
+            <div className="text-left">
+              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1.5 ml-1">Physical Address</label>
+              <div className="relative">
+                <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  name="location"
+                  required
+                  placeholder="Location / Address"
+                  value={formData.location}
+                  onChange={handleChange}
+                  className="w-full h-11 pl-11 pr-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 p-6 rounded-3xl shadow-xs text-left">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white mb-4">Structural Specifications</h3>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="relative">
+                <Bed className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  name="bedrooms"
+                  type="number"
+                  required
+                  min="0"
+                  placeholder="Bedrooms"
+                  value={formData.bedrooms}
+                  onChange={handleChange}
+                  className="w-full h-11 pl-10 pr-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                />
+              </div>
+
+              <div className="relative">
+                <Bath className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  name="bathrooms"
+                  type="number"
+                  required
+                  min="0"
+                  placeholder="Bathrooms"
+                  value={formData.bathrooms}
+                  onChange={handleChange}
+                  className="w-full h-11 pl-10 pr-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                />
+              </div>
+
+              <div className="relative">
+                <Maximize className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  name="area"
+                  type="number"
+                  required
+                  min="1"
+                  placeholder="Area (Sq. Ft.)"
+                  value={formData.area}
+                  onChange={handleChange}
+                  className="w-full h-11 pl-10 pr-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                />
+              </div>
+            </div>
+
+                        <div className="mt-4">
+              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1.5 ml-1">Asset Availability Status</label>
+              <select
+                name="availabilityStatus"
+                value={formData.availabilityStatus}
+                onChange={handleChange}
+                className="w-full h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 text-xs font-bold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all cursor-pointer"
+              >
+                <option value="available">Available</option>
+                <option value="occupied">Occupied</option>
+                <option value="reserved">Reserved</option>
+                <option value="sold">Sold</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex gap-4">
+            <button
+              type="button"
+              onClick={() => navigate("/dashboard")}
+              className="flex-1 h-12 border border-slate-200 dark:border-slate-800 rounded-xl font-extrabold uppercase text-xs tracking-wider flex justify-center items-center gap-2 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-xs cursor-pointer"
+            >
+              <ChevronLeft size={16} />
+              <span>Back</span>
+            </button>
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex-1 h-12 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/40 text-white font-extrabold uppercase text-xs tracking-wider rounded-xl transition-all shadow-md border-0 cursor-pointer flex items-center justify-center gap-2"
+            >
+              <Save size={16} />
+              <span>{submitting ? "Saving changes..." : "Save Changes"}</span>
+            </button>
+          </div>
+        </form>
       </section>
     </div>
   );

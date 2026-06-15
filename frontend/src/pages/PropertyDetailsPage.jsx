@@ -1,74 +1,79 @@
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { BedDouble, Bath, Square, MapPin, Send, CheckCircle, ArrowLeft } from "lucide-react";
-import { getPropertyById } from "../services/propertyService";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { Heart, Edit, Trash2, MapPin, Send, MessageSquare, User, Mail, Calendar, DollarSign, Layers } from "lucide-react";
+
+import {
+  getPropertyById,
+  deleteProperty,
+  contactPropertyAgent,
+  updatePropertyStatus,
+} from "../services/propertyService";
+
 import Navbar from "@/components/home/Navbar";
+import { useFavorites } from "@/context/FavoritesContext";
 
 export default function PropertyDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+
+  const { favorites, toggleFavorite } = useFavorites();
+
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
-  
-  // Active thumbnail tracker for the media gallery column
-  const [activeImage, setActiveImage] = useState("");
-  
-  // Contact Listing Agent form local state handlers
-  const [leadForm, setLeadForm] = useState({ name: "", email: "", message: "" });
-  const [isSent, setIsSent] = useState(false);
+
+  const [leadForm, setLeadForm] = useState({
+    name: "",
+    email: "",
+    message: "",
+  });
+
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSent, setIsSent] = useState(false);
+
+  const user = JSON.parse(localStorage.getItem("user") || "null");
+
+  const loadProperty = async () => {
+    try {
+      const data = await getPropertyById(id);
+      setProperty(data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadSingleAsset = async () => {
-      try {
-        setLoading(true);
-        const data = await getPropertyById(id);
-        if (data) {
-          setProperty(data);
-          if (data.images && data.images.length > 0) {
-            setActiveImage(data.images[0]);
-          }
-        }
-      } catch (err) {
-        console.error("Failed fetching listing parameters:", err);
-        // High-Fidelity Snapshot Fallback to populate preview matches on server failure
-        const mockFallback = {
-          title: "THE MOST LEXARIOUS HOUSE",
-          description: "The Most Lexarious House.",
-          price: 1560,
-          location: "2056 WATERVIEW TEXICO, NM 88135",
-          type: "APARTMENT",
-          bedrooms: 3,
-          bathrooms: 2,
-          area: 1200,
-          broker: { name: "eyassu melese", email: "1234567890@gmail.com" },
-          images: [
-            "https://unsplash.com",
-            "https://unsplash.com"
-          ]
-        };
-        setProperty(mockFallback);
-        setActiveImage(mockFallback.images[0]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (id) loadSingleAsset();
+    loadProperty();
   }, [id]);
 
-  const handleInputChange = (e) => {
-    setLeadForm({ ...leadForm, [e.target.name]: e.target.value });
+  const isOwner = user?._id === property?.owner?._id;
+
+  const isFavorited = favorites.some(
+    (fav) => fav._id === property?._id || fav.property?._id === property?._id
+  );
+
+  const handleDelete = async () => {
+    if (window.confirm("Are you sure you want to permanently delete this property listing?")) {
+      await deleteProperty(id);
+      navigate("/dashboard");
+    }
+  };
+
+  const handleStatusChange = async (status) => {
+    await updatePropertyStatus(property._id, status);
+    loadProperty();
   };
 
   const handleLeadSubmit = async (e) => {
     e.preventDefault();
     try {
       setIsSubmitting(true);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      setIsSent(true);
+      await contactPropertyAgent(id, leadForm);
       setLeadForm({ name: "", email: "", message: "" });
-    } catch (err) {
-      console.error(err);
+      setIsSent(true);
+    } catch (error) {
+      console.error(error);
     } finally {
       setIsSubmitting(false);
     }
@@ -76,152 +81,230 @@ export default function PropertyDetailsPage() {
 
   if (loading) {
     return (
-      <div className="w-full bg-slate-950 min-h-screen text-slate-400 flex items-center justify-center animate-pulse text-xs font-bold uppercase tracking-widest">
-        Synchronizing listing dimensions...
+      <div className="w-full bg-slate-50 dark:bg-slate-950 min-h-screen">
+        <Navbar />
+        <div className="flex items-center justify-center py-40">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        </div>
       </div>
     );
   }
 
+  if (!property) return null;
+
+  const displayImage = property.images?.length > 0
+    ? property.images[0].startsWith("http")
+      ? property.images[0]
+      : `http://localhost:5000${property.images[0]}`
+    : "https://unsplash.com";
+
+  const propertyPrice =
+    property?.pricing?.salePrice ||
+    property?.pricing?.monthlyRent ||
+    property?.pricing?.dailyRate ||
+    property?.price ||
+    0;
+
+  const statusColors = {
+    draft: "bg-yellow-500 text-white",
+    published: "bg-green-600 text-white",
+    archived: "bg-gray-500 text-white",
+    sold: "bg-red-600 text-white",
+    closed: "bg-black text-white",
+  };
+
   return (
-    <div className="w-full bg-[#030712] min-h-screen text-slate-200 text-left select-none pb-24">
+    <div className="w-full bg-slate-50 dark:bg-slate-950 min-h-screen text-slate-800 dark:text-slate-200 transition-colors duration-200 pb-20">
       <Navbar />
 
-      <main className="max-w-[1320px] mx-auto px-4 pt-10">
-        
-        {/* UPPER DUAL IMAGE GALLERY & SIDE GRID LAYOUT PANEL */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-10 w-full items-stretch">
-          
-          {/* Main Visual Display Block (Spans 8 Columns) */}
-          <div className="lg:col-span-8 relative h-[480px] bg-slate-900 border border-slate-800/80 rounded-2xl overflow-hidden shadow-2xl">
-            <img src={activeImage} alt="Main Snapshot Profile" className="w-full h-full object-cover" />
-            <span className="absolute top-4 left-4 bg-blue-600 text-white font-black tracking-widest uppercase text-[10px] px-3 py-1 rounded-md shadow-md">
-              {property?.type || "APARTMENT"}
-            </span>
-          </div>
-
-          {/* Right Media Thumbnails Secondary Gallery Stack Panel (Spans 4 Columns) */}
-          <div className="lg:col-span-4 bg-slate-900/40 border border-slate-900 rounded-2xl p-5 flex flex-col justify-start min-h-[480px]">
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-4 border-b border-slate-800 pb-2">Media Gallery</h4>
-            
-            <div className="grid grid-cols-2 gap-3 overflow-y-auto pr-1">
-              {property?.images?.map((imgUrl, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => setActiveImage(imgUrl)}
-                  className={`relative h-20 rounded-xl overflow-hidden border transition-all cursor-pointer bg-slate-950 p-0 ${activeImage === imgUrl ? "border-blue-500 ring-2 ring-blue-500/10" : "border-slate-800 hover:border-slate-700"}`}
-                >
-                  <img src={imgUrl} alt="Thumbnail shortcut" className="w-full h-full object-cover" />
-                </button>
-              ))}
+      <main className="max-w-6xl mx-auto pt-8 px-4">
+        {isOwner && (
+          <div className="flex items-center justify-between bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-4 rounded-2xl shadow-xs mb-6">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Management Options:</span>
+              <select
+                value={property.listingStatus || "draft"}
+                onChange={(e) => handleStatusChange(e.target.value)}
+                className={`border rounded-lg px-3 py-1.5 text-xs font-black uppercase tracking-wider cursor-pointer focus:outline-none ${statusColors[property.listingStatus] || "bg-white text-slate-700"}`}
+              >
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+                <option value="archived">Archived</option>
+                <option value="sold">Sold</option>
+                <option value="closed">Closed</option>
+              </select>
             </div>
 
-            {property?.images?.length <= 1 && (
-              <p className="text-[11px] text-slate-600 italic font-medium my-auto text-center">No additional images uploaded.</p>
-            )}
-          </div>
-        </div>
+            <div className="flex gap-3">
+              <Link
+                to={`/edit-property/${property._id}`}
+                className="flex items-center gap-1.5 text-xs font-bold px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition-all no-underline text-slate-700 dark:text-slate-300 shadow-xs"
+              >
+                <Edit className="w-3.5 h-3.5" />
+                <span>Edit</span>
+              </Link>
 
-        {/* IDENTITY TYPOGRAPHY SUMMARY HEADER ROW */}
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8 border-b border-slate-900 pb-6">
-          <div className="text-left">
-            <h1 className="text-3xl font-black text-white uppercase tracking-tight leading-none">{property?.title}</h1>
-            <p className="text-xs font-bold text-slate-400 mt-2.5 flex items-center gap-1">
-              <MapPin size={12} className="text-red-500 shrink-0" />
-              <span className="uppercase tracking-wider font-semibold">{property?.location}</span>
-            </p>
-          </div>
-          <div className="sm:text-right shrink-0">
-            <span className="text-2xl font-black text-blue-500 tracking-tight leading-none">${property?.price?.toLocaleString()}</span>
-            <span className="block text-[8px] font-black text-slate-600 uppercase tracking-widest mt-1">Publishing: 11/12/2026</span>
-          </div>
-        </div>
-
-        {/* TRIPLE SPECIFICATION PARAMETERS DECK TAB */}
-        <div className="grid grid-cols-3 border border-slate-900 bg-slate-900/20 rounded-xl p-4 mb-10 divide-x divide-slate-900 text-center font-bold">
-          <div>
-            <span className="block text-xl font-black text-white">{property?.bedrooms}</span>
-            <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider mt-0.5 block">Bedrooms</span>
-          </div>
-          <div>
-            <span className="block text-xl font-black text-white">{property?.bathrooms}</span>
-            <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider mt-0.5 block">Bathrooms</span>
-          </div>
-          <div>
-            <span className="block text-xl font-black text-white">{property?.area}</span>
-            <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider mt-0.5 block">Sq Ft (Area)</span>
-          </div>
-        </div>
-
-        {/* NARRATIVE DESCRIPTION LAYER PANEL */}
-        <div className="bg-slate-900/30 border border-slate-900/60 rounded-xl p-5 mb-10 text-left space-y-2.5">
-          <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 border-b border-slate-900/60 pb-2">Description</h4>
-          <p className="text-xs font-medium text-slate-400 leading-relaxed max-w-[800px]">{property?.description}</p>
-        </div>
-
-        {/* CONNECTED BROKER ID BADGE CARD COMPONENT */}
-        <div className="bg-slate-900/50 border border-slate-800/80 rounded-xl p-4 mb-10 flex items-center gap-4 text-left max-w-xl shadow-sm">
-          <div className="w-10 h-10 rounded-full bg-blue-600 font-black text-sm text-white flex items-center justify-center uppercase shadow-inner">
-            {property?.broker?.name?.charAt(0) || "E"}
-          </div>
-          <div className="min-w-0">
-            <span className="block text-[8px] font-black text-blue-500 uppercase tracking-widest leading-none mb-1">Listed Broker Account</span>
-            <h4 className="font-black text-sm text-white leading-tight tracking-tight">{property?.broker?.name || "eyassu melese"}</h4>
-            <p className="text-xs font-medium text-slate-500 truncate mt-0.5">{property?.broker?.email || "1234567890@gmail.com"}</p>
-          </div>
-        </div>
-
-        {/* INTERACTIVE FORM DISPATCH PORTAL */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 lg:p-8 shadow-2xl text-left">
-          <div className="border-b border-slate-800 pb-4 mb-6">
-            <h3 className="font-black text-base text-white tracking-tight uppercase tracking-wide">Contact Listing Agent</h3>
-            <p className="text-[11px] font-semibold text-slate-500 tracking-wide mt-1">Send an instant inquiry message directly to this agent's inbox</p>
-          </div>
-
-          {isSent ? (
-            <div className="py-8 flex flex-col items-center justify-center text-center animate-in fade-in duration-200">
-              <div className="w-12 h-12 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 flex items-center justify-center rounded-full mb-3">
-                <CheckCircle className="w-6 h-6" />
-              </div>
-              <h4 className="font-bold text-sm text-white">Lead Message Dispatched</h4>
-              <p className="text-slate-500 text-[11px] font-medium mt-1">The broker has queued your metadata filters checklist parameters.</p>
+              <button
+                onClick={handleDelete}
+                className="flex items-center gap-1.5 text-xs font-bold px-4 py-2 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/50 rounded-xl border-0 cursor-pointer transition-all shadow-xs"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete</span>
+              </button>
             </div>
-          ) : (
-            <form onSubmit={handleLeadSubmit} className="space-y-5">
-                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          </div>
+        )}
+
+        <div className="relative w-full h-[460px] bg-slate-950 rounded-3xl overflow-hidden shadow-sm border border-slate-200/40 dark:border-slate-800/50">
+          <img
+            src={displayImage}
+            alt={property.title}
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-transparent pointer-events-none" />
+
+          <button
+            onClick={() => toggleFavorite(property._id)}
+            className="absolute top-4 right-4 w-11 h-11 bg-white/80 hover:bg-white dark:bg-slate-900/80 dark:hover:bg-slate-900 backdrop-blur-md rounded-full flex items-center justify-center transition-all border-0 shadow-sm cursor-pointer z-10 outline-none"
+          >
+            <Heart
+              className={`w-5 h-5 transition-colors ${
+                isFavorited ? "fill-red-500 text-red-500" : "text-slate-700 dark:text-white"
+              }`}
+            />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-8 items-start">
+          <div className="lg:col-span-8 space-y-6">
+            <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-6 rounded-3xl shadow-xs">
+              <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <label className="block text-[10.5px] font-bold text-slate-500 uppercase tracking-wider mb-2">Your Name</label>
-                  <input type="text" name="name" required placeholder="Enter full name" value={leadForm.name} onChange={handleInputChange} className="w-full px-4 py-3 bg-[#030712] border border-slate-800 rounded-xl text-xs text-white outline-none focus:border-blue-500 font-medium transition-colors" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-md mb-2 inline-block">
+                    {property.propertyCategory || "Property"}
+                  </span>
+                  <h1 className="text-2xl lg:text-3xl font-black tracking-tight text-slate-900 dark:text-white leading-tight">
+                    {property.title}
+                  </h1>
+                  <div className="flex items-center gap-1.5 mt-2 text-slate-400 dark:text-slate-500 text-xs font-semibold">
+                    <MapPin className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+                    <span>{property.location}</span>
+                  </div>
+                </div>
+
+                <div className="text-left lg:text-right shrink-0">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Listed Price</p>
+                  <p className="text-3xl font-black text-blue-600 dark:text-blue-500 tracking-tight mt-0.5">
+                    ${propertyPrice.toLocaleString()}
+                  </p>
+                  <span className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">
+                    {property.listingType === "rent" ? "/ Month" : "/ Total"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4 border-y border-slate-100 dark:border-slate-800 my-6 py-4 text-center">
+                <div>
+                  <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Bedrooms</p>
+                  <p className="text-base font-black text-slate-800 dark:text-white mt-1">🛏️ {property.bedrooms || 0}</p>
+                </div>
+                <div className="border-x border-slate-100 dark:border-slate-800">
+                  <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Bathrooms</p>
+                  <p className="text-base font-black text-slate-800 dark:text-white mt-1">🛁 {property.bathrooms || 0}</p>
                 </div>
                 <div>
-                  <label className="block text-[10.5px] font-bold text-slate-500 uppercase tracking-wider mb-2">Email Address</label>
-                  <input type="email" name="email" required placeholder="name@example.com" value={leadForm.email} onChange={handleInputChange} className="w-full px-4 py-3 bg-[#030712] border border-slate-800 rounded-xl text-xs text-white outline-none focus:border-blue-500 font-medium transition-colors" />
+                  <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Square Area</p>
+                  <p className="text-base font-black text-slate-800 dark:text-white mt-1">📐 {property.area || 0} sqft</p>
                 </div>
               </div>
 
               <div>
-                <label className="block text-[10.5px] font-bold text-slate-500 uppercase tracking-wider mb-2">Message</label>
-                <textarea name="message" required placeholder="Write your inquiry details here..." value={leadForm.message} onChange={handleInputChange} className="w-full h-32 px-4 py-3 bg-[#030712] border border-slate-800 rounded-xl text-xs text-white outline-none focus:border-blue-500 resize-none font-medium leading-relaxed transition-colors" />
+                <h3 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white mb-3">About This Listing</h3>
+                <p className="text-xs font-medium leading-relaxed text-slate-500 dark:text-slate-400 whitespace-pre-line bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-100 dark:border-slate-900">
+                  {property.description || "No further descriptions provided for this property allocation asset."}
+                </p>
               </div>
+            </div>
+          </div>
 
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full h-11 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-extrabold text-xs uppercase tracking-widest rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer border-0"
-              >
-                {isSubmitting ? (
-                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <span>Send Message Lead</span>
+            <div className="lg:col-span-4 w-full">
+            {!isOwner ? (
+              <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-6 rounded-3xl shadow-xs space-y-4">
+                <div className="flex items-center gap-2 mb-2 text-left">
+                  <MessageSquare className="w-5 h-5 text-blue-600" />
+                  <h3 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white">Inquire Agent</h3>
+                </div>
+                <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 leading-normal">
+                  Drop your coordinates and message parameters down below to directly stream a lead hook forward into the owner workspace board channel.
+                </p>
+
+                <form onSubmit={handleLeadSubmit} className="space-y-3.5 pt-2">
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input
+                      name="name"
+                      required
+                      value={leadForm.name}
+                      onChange={(e) => setLeadForm({ ...leadForm, name: e.target.value })}
+                      placeholder="Your Full Name"
+                      className="w-full h-11 pl-10 pr-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-xs font-medium focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                    />
+                  </div>
+
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input
+                      name="email"
+                      type="email"
+                      required
+                      value={leadForm.email}
+                      onChange={(e) => setLeadForm({ ...leadForm, email: e.target.value })}
+                      placeholder="Your Email Address"
+                      className="w-full h-11 pl-10 pr-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-xs font-medium focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                    />
+                  </div>
+
+                  <div className="relative">
+                    <textarea
+                      name="message"
+                      required
+                      rows={4}
+                      value={leadForm.message}
+                      onChange={(e) => setLeadForm({ ...leadForm, message: e.target.value })}
+                      placeholder="Type your inquiry message details..."
+                      className="w-full p-3 pt-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-xs font-medium focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all resize-none"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white font-extrabold uppercase text-xs tracking-wider rounded-xl transition-all shadow-xs border-0 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
                     <Send className="w-3.5 h-3.5" />
-                  </>
-                )}
-              </button>
-            </form>
-          )}
-        </div>
+                    <span>{isSubmitting ? "Submitting Inquiry..." : "Send Inquiry Link"}</span>
+                  </button>
 
+                  {isSent && (
+                    <div className="p-3 bg-green-50 dark:bg-green-950/20 text-green-600 dark:text-green-400 text-xs font-bold rounded-xl text-center border border-green-100 dark:border-green-900/30">
+                      ✨ Inquiry sent to owner successfully.
+                    </div>
+                  )}
+                </form>
+              </div>
+            ) : (
+              <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-6 rounded-3xl shadow-xs space-y-4 text-center">
+                <div className="w-12 h-12 bg-blue-500/10 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-2">
+                  <Layers className="w-5 h-5" />
+                </div>
+                <h3 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white">Workspace View Mode</h3>
+                <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 leading-normal">
+                  You are viewing this real estate asset listing as its authenticated developer owner. Inquiry generation operations are blocked for you.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
       </main>
     </div>
   );

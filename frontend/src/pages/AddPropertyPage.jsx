@@ -1,334 +1,381 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { UploadCloud, FileText, LayoutGrid, PlusCircle } from "lucide-react"; // 🎯 MODERNIZED: Swapped text emojis for premium vectors
+import { UploadCloud, FileText, MapPin, Bed, Bath, Maximize, DollarSign, Calendar, Sliders, ChevronLeft } from "lucide-react";
 import { createProperty, uploadPropertyImage } from "../services/propertyService";
-import Navbar from "@/components/home/Navbar"; // 🎯 MODULAR: Integrated core shell header
+import Navbar from "@/components/home/Navbar";
 
 const AddPropertyPage = () => {
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(false);
   const [image, setImage] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(""); 
+  const [previewUrl, setPreviewUrl] = useState("");
 
-  // 📝 STATUS TRACKER INITIALIZED: Sets up state to switch between Sale and Rent options
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    price: "",
+    listingType: "sale",
+    propertyCategory: "house",
     location: "",
-    type: "House", 
-    status: "For Sale", 
     bedrooms: "",
     bathrooms: "",
     area: "",
+    leaseDuration: "",
+    availabilityStatus: "available",
+    salePrice: "",
+    monthlyRent: "",
+    dailyRate: "",
   });
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   const handleImageChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0]; 
-      setImage(selectedFile);
-      setPreviewUrl(URL.createObjectURL(selectedFile)); 
-    }
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImage(file);
+    setPreviewUrl(URL.createObjectURL(file));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // 🛡️ Strict Client-Side Field Validation Checks
-    if (!formData.title.trim() || !formData.description.trim() || !formData.location.trim()) {
-      return alert("Text inputs cannot contain only blank spacing elements.");
-    }
-    if (Number(formData.price) <= 0) {
-      return alert("Validation Failure: Price parameters must be positive numbers greater than 0.");
-    }
-    if (Number(formData.bedrooms) < 0 || Number(formData.bathrooms) < 0) {
-      return alert("Validation Failure: Physical amenity room counts cannot fall below zero.");
-    }
-    if (!formData.area || Number(formData.area) <= 0) {
-      return alert("Validation Failure: Area measurement cannot be empty and must be greater than 0.");
-    }
     if (!image) {
-      return alert("Please select a property cover image before submitting.");
+      alert("Please select an image first");
+      return;
     }
 
     try {
       setLoading(true);
 
-      const cleanDataForBackend = {
-        ...formData,
-        price: Number(formData.price),
-        bedrooms: Number(formData.bedrooms),
-        bathrooms: Number(formData.bathrooms),
-        area: Number(formData.area),
+      const payload = {
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        listingType: formData.listingType,
+        propertyCategory: formData.propertyCategory,
+        location: formData.location.trim(),
+        bedrooms: Number(formData.bedrooms || 0),
+        bathrooms: Number(formData.bathrooms || 0),
+        area: Number(formData.area || 0),
+        leaseDuration: formData.leaseDuration || undefined,
+        availabilityStatus: formData.availabilityStatus,
+        pricing: {
+          salePrice: formData.listingType === "sale" ? Number(formData.salePrice) : undefined,
+          monthlyRent: formData.listingType === "rent" ? Number(formData.monthlyRent) : undefined,
+          dailyRate: formData.listingType === "hotel" ? Number(formData.dailyRate) : undefined,
+        },
       };
 
-      // STEP 1: Create text database listing entries inside MongoDB
-      const createdProperty = await createProperty(cleanDataForBackend);
-      console.log("Created Property Data Payload:", createdProperty);
+      const property = await createProperty(payload);
 
-      // STEP 2: Pass the raw binary image state directly to your helper function
-      if (image && createdProperty && createdProperty._id) {
-        const uploadResponse = await uploadPropertyImage(
-          createdProperty._id,
-          image 
-        );
-        console.log("Local Upload Response:", uploadResponse);
+      if (!property?._id) {
+        throw new Error("Property creation failed");
       }
 
-      alert("Property created successfully!");
+      await uploadPropertyImage(property._id, image);
 
-      setTimeout(() => {
-        navigate("/properties");
-      }, 500);
+      alert("Property created successfully");
+      navigate("/properties");
     } catch (error) {
-      console.error("Full Error Context Object:", error);
-      const backendMessage = error?.response?.data?.message;
-      const networkStatus = error?.response?.status;
-      
-      alert(
-        `Error Status: ${networkStatus || "Network Failure"}\nReason: ${backendMessage || error.message}`
-      );
+      console.error("Add property error:", error);
+      alert(error?.response?.data?.message || error?.message || "Failed creating property");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    // 🎯 TARGET SPEC MULTI-THEME OVERRIDE CANVAS
-    <div className="w-full bg-slate-50 dark:bg-slate-950 min-h-screen select-none text-left transition-colors duration-200 pb-24 flex flex-col">
-      
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 transition-colors duration-200 pb-20">
       <Navbar />
 
-      {/* 🎯 MAIN CANVASES FRAMEWORK ENVELOPE: Locked precisely to your global 1320px constraints */}
-      <section className="max-w-[1320px] mx-auto w-full px-4 pt-12 flex-1 flex flex-col justify-start">
-        
-        {/* LEFT FLUSH HEADER COMPONENT ROW WITH ACCENT LINE */}
-        <div className="mb-10 relative inline-block max-w-max">
-          <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-500 bg-blue-500/10 px-3 py-1 rounded-full mb-3 block w-max">
-            Creator Wizard
-          </span>
-          <h1 className="text-3xl lg:text-4xl font-black text-slate-800 dark:text-white tracking-tight pb-3">
-            Add New <span className="text-blue-600 dark:text-blue-500">Property</span> Listing
-          </h1>
-          <div className="absolute bottom-0 left-0 w-1/4 h-[2px] bg-blue-600 dark:bg-blue-500 rounded-full" />
+      <section className="max-w-4xl mx-auto px-4 pt-10">
+        {/* Navigation / Header Title Block */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 text-left">
+          <div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 bg-blue-500/10 px-3 py-1 rounded-md mb-2 inline-block">
+              Listing Creator
+            </span>
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+              Add New Property
+            </h1>
+            <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 mt-1">
+              Create and dispatch marketplace listings for sale, rent, or hotel stays into the stream database.
+            </p>
+          </div>
+          
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-1.5 text-xs font-bold px-4 py-2 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-xs w-max cursor-pointer outline-none"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            <span>Back</span>
+          </button>
         </div>
 
-        {/* COMPOSITE INTERACTION FORM CARD GRID DECK PANEL */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start w-full">
+        <form onSubmit={handleSubmit} className="space-y-6">
           
-          {/* Main Form Entry Column Panel */}
-          <div className="lg:col-span-8 w-full">
-            <form
-              onSubmit={handleSubmit}
-              className="space-y-6 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 p-6 lg:p-8 rounded-2xl shadow-sm text-left"
-            >
-              {/* 🛠️ Live Image Preview Window */}
-              {previewUrl && (
-                <div className="relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 h-64 bg-slate-100 dark:bg-slate-950 shadow-inner">
-                  <img 
-                    src={previewUrl} 
-                    alt="Selected Asset Snapshot Preview" 
-                    className="w-full h-full object-cover" 
+          {/* 📷 IMAGE BANNER UPLOAD ZONE */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 p-5 rounded-3xl shadow-xs">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white mb-3 text-left">Media Assets</h3>
+            {previewUrl ? (
+              <div className="relative w-full h-[320px] bg-slate-950 rounded-2xl overflow-hidden border border-slate-200/40 dark:border-slate-800/50 group">
+                <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                  <label className="px-4 py-2 bg-white text-slate-900 text-xs font-bold rounded-xl cursor-pointer shadow-md hover:bg-slate-100 transition-colors">
+                    Change Photo
+                    <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+                  </label>
+                </div>
+              </div>
+            ) : (
+              <label className="border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl p-12 flex flex-col items-center justify-center bg-slate-50/50 dark:bg-slate-950/20 hover:bg-slate-50 dark:hover:bg-slate-950/40 transition-colors cursor-pointer group">
+                <div className="w-12 h-12 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                  <UploadCloud className="w-5 h-5" />
+                </div>
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Upload Cover Image</span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 font-semibold">Supports PNG, JPG, or JPEG up to 50MB</span>
+                <input type="file" accept="image/*" required onChange={handleImageChange} className="hidden" />
+              </label>
+            )}
+          </div>
+
+          {/* 📝 PRIMARY TEXT DESCRIPTIONS GRID */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 p-6 rounded-3xl shadow-xs space-y-4">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white mb-2 text-left">Basic Details</h3>
+            
+            <div className="relative">
+              <FileText className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                name="title"
+                required
+                placeholder="Property Title Heading"
+                value={formData.title}
+                onChange={handleChange}
+                className="w-full h-11 pl-11 pr-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+              />
+            </div>
+
+            <div className="relative">
+              <textarea
+                name="description"
+                required
+                rows={4}
+                placeholder="Detailed listing description regarding features, highlights, surroundings, etc..."
+                value={formData.description}
+                onChange={handleChange}
+                className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all resize-none"
+              />
+            </div>
+          </div>
+
+          {/* 🛠️ TRANSACTION TYPES & DYNAMIC PRICE MATRIX */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 p-6 rounded-3xl shadow-xs grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="text-left">
+              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1.5 ml-1">Listing Operation</label>
+              <div className="relative">
+                <Sliders className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <select
+                  name="listingType"
+                  value={formData.listingType}
+                  onChange={handleChange}
+                  className="w-full h-11 pl-11 pr-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 text-xs font-bold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all cursor-pointer appearance-none"
+                >
+                  <option value="sale">For Sale</option>
+                  <option value="rent">For Rent</option>
+                  <option value="hotel">Hotel Stay</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="text-left">
+              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1.5 ml-1">Financial Parameters</label>
+              
+                            {formData.listingType === "sale" && (
+                <div className="relative">
+                  <DollarSign className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    name="salePrice"
+                    type="number"
+                    required
+                    placeholder="Sale Price (USD)"
+                    value={formData.salePrice}
+                    onChange={handleChange}
+                    className="w-full h-11 pl-11 pr-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
                   />
-                  <div className="absolute bottom-3 left-3 bg-slate-900/80 border border-slate-700 backdrop-blur-sm text-xs text-slate-200 px-3 py-1 rounded-md">
-                    Selected Cover File Preview
+                </div>
+              )}
+
+              {formData.listingType === "rent" && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input
+                      name="monthlyRent"
+                      type="number"
+                      required
+                      placeholder="Monthly Rent"
+                      value={formData.monthlyRent}
+                      onChange={handleChange}
+                      className="w-full h-11 pl-9 pr-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                    />
+                  </div>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <select
+                      name="leaseDuration"
+                      required
+                      value={formData.leaseDuration}
+                      onChange={handleChange}
+                      className="w-full h-11 pl-9 pr-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 text-xs font-bold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all cursor-pointer"
+                    >
+                      <option value="">Lease Type</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="monthly">Monthly</option>
+                      <option value="yearly">Yearly</option>
+                    </select>
                   </div>
                 </div>
               )}
 
-              {/* Title Input Row */}
-              <div>
-                <label className="block text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Property Listing Title</label>
-                <input
-                  type="text"
-                  name="title"
-                  value={formData.title}
-                  placeholder="e.g., Flint Hint Luxurious House"
-                  required
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 rounded-xl text-xs text-slate-800 dark:text-white font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all"
-                />
-              </div>
-
-              {/* Description Input Row */}
-              <div>
-                <label className="block text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Detailed Narrative Description</label>
-                <textarea
-                  name="description"
-                  value={formData.description}
-                  placeholder="Specify key architectural specifications, neighborhood advantages, and environment accessibility features..."
-                  required
-                  onChange={handleChange}
-                  className="w-full h-36 px-4 py-3 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 rounded-xl text-xs text-slate-800 dark:text-white font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all resize-none leading-relaxed"
-                />
-              </div>
-
-              {/* Price and Location Responsive Split Row */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Target Price ($)</label>
+              {formData.listingType === "hotel" && (
+                <div className="relative">
+                  <DollarSign className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input
+                    name="dailyRate"
                     type="number"
-                    name="price"
-                    value={formData.price}
-                    placeholder="Price Parameters"
                     required
+                    placeholder="Daily Rate Charge (USD)"
+                    value={formData.dailyRate}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 rounded-xl text-xs text-slate-800 dark:text-white font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all"
+                    className="w-full h-11 pl-11 pr-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
                   />
                 </div>
-                <div>
-                  <label className="block text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Physical Location / Address</label>
-                  <input
-                    type="text"
-                    name="location"
-                    value={formData.location}
-                    placeholder="e.g., 2056 WaterView Texas, NM 88135"
-                    required
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 rounded-xl text-xs text-slate-800 dark:text-white font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* Dropdowns Configuration Split Row */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Property Core Type</label>
-                  <select
-                    name="type"
-                    value={formData.type}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 rounded-xl text-xs text-slate-700 dark:text-slate-200 font-bold outline-none focus:border-blue-500 cursor-pointer transition-colors"
-                  >
-                    <option value="House">House</option>
-                    <option value="Apartment">Apartment</option>
-                    <option value="Villa">Villa</option>
-                    <option value="Hotel">Hotel</option>
-                    <option value="Warehouse">Warehouse</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Listing Status</label>
-                  <select
-                    name="status"
-                    value={formData.status || "For Sale"}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 rounded-xl text-xs text-slate-700 dark:text-slate-200 font-bold outline-none focus:border-blue-500 cursor-pointer transition-colors"
-                  >
-                    <option value="For Sale">For Sale</option>
-                    <option value="For Rent">For Rent</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Cover File Upload Input Slot */}
-              <div>
-                <label className="block text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Property Cover Asset Image</label>
-                <div className="relative w-full border border-dashed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100/50 dark:hover:bg-slate-900/40 transition-all rounded-xl p-5 flex items-center justify-center gap-3 cursor-pointer">
-                  <UploadCloud className="w-4 h-4 text-blue-600 dark:text-blue-500" />
-                  <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide">Choose Asset File Binary</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    required
-                    onChange={handleImageChange}
-                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                  />
-                </div>
-              </div>
-
-              {/* Amenity Specifications Triple Grid Input Row */}
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Bedrooms</label>
-                  <input
-                    type="number"
-                    name="bedrooms"
-                    value={formData.bedrooms}
-                    placeholder="Count"
-                    required
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 rounded-xl text-xs text-slate-800 dark:text-white font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Bathrooms</label>
-                  <input
-                    type="number"
-                    name="bathrooms"
-                    value={formData.bathrooms}
-                    placeholder="Count"
-                    required
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 rounded-xl text-xs text-slate-800 dark:text-white font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Area (sq ft)</label>
-                  <input
-                    type="number"
-                    name="area"
-                    value={formData.area}
-                    placeholder="Size"
-                    required
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 rounded-xl text-xs text-slate-800 dark:text-white font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* Form Submission Action Dispatch Trigger */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white font-extrabold text-xs uppercase tracking-widest py-3.5 rounded-xl transition-all shadow-md shadow-blue-600/10 cursor-pointer flex items-center justify-center gap-2 h-11"
-              >
-                {loading ? (
-                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <span>Index Property Asset</span>
-                    <PlusCircle className="w-3.5 h-3.5" />
-                  </>
-                )}
-              </button>
-            </form>
-          </div>
-
-          {/* 📄 RIGHT COLUMN PANEL: HELPFUL GUIDELINES INFO BOX */}
-          <div className="lg:col-span-4 space-y-6 w-full text-left">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl p-6 shadow-sm">
-              <div className="flex items-center gap-2 mb-4 border-b border-slate-100 dark:border-slate-800/60 pb-3">
-                <FileText className="w-4 h-4 text-blue-600 dark:text-blue-500" />
-                <h3 className="font-bold text-xs uppercase tracking-wider text-slate-800 dark:text-white">Listing Guidelines</h3>
-              </div>
-              <ul className="space-y-3.5 text-slate-400 dark:text-slate-500 text-xs font-medium leading-relaxed list-none pl-0">
-                <li className="flex items-start gap-2.5">
-                  <span className="text-blue-600 dark:text-blue-500 text-xs select-none mt-0.5">▪</span>
-                  <span>Ensure your pricing values are correct; multi-million valuations should not contain comma markers in form entries.</span>
-                </li>
-                <li className="flex items-start gap-2.5">
-                  <span className="text-blue-600 dark:text-blue-500 text-xs select-none mt-0.5">▪</span>
-                  <span>Uploading high-resolution landscaping or facade image binaries drastically upgrades asset transaction matching ratios.</span>
-                </li>
-                <li className="flex items-start gap-2.5">
-                  <span className="text-blue-600 dark:text-blue-500 text-xs select-none mt-0.5">▪</span>
-                  <span>Double-check your city postal indexes on location address lines before submitting data records.</span>
-                </li>
-              </ul>
+              )}
             </div>
           </div>
-        </div>
 
+          {/* 🏷️ SCHEMA CATEGORIES & GEOLOCATION LAYERS */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 p-6 rounded-3xl shadow-xs grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="text-left">
+              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1.5 ml-1">Asset Architecture</label>
+              <select
+                name="propertyCategory"
+                value={formData.propertyCategory}
+                onChange={handleChange}
+                className="w-full h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 text-xs font-bold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all cursor-pointer"
+              >
+                <option value="house">House</option>
+                <option value="apartment">Apartment</option>
+                <option value="villa">Villa</option>
+                <option value="hotel">Hotel Block</option>
+                <option value="office">Office Space</option>
+                <option value="land">Commercial Land</option>
+              </select>
+            </div>
+
+            <div className="text-left">
+              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1.5 ml-1">Physical Address</label>
+              <div className="relative">
+                <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  name="location"
+                  required
+                  placeholder="Location / Address"
+                  value={formData.location}
+                  onChange={handleChange}
+                  className="w-full h-11 pl-11 pr-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* 📐 STRUCTURAL SPECIFICATIONS PANEL MATRIX */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 p-6 rounded-3xl shadow-xs text-left">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white mb-4">Structural Specifications</h3>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="relative">
+                <Bed className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  name="bedrooms"
+                  type="number"
+                  required
+                  min="0"
+                  placeholder="Bedrooms"
+                  value={formData.bedrooms}
+                  onChange={handleChange}
+                  className="w-full h-11 pl-10 pr-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                />
+              </div>
+
+              <div className="relative">
+                <Bath className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  name="bathrooms"
+                  type="number"
+                  required
+                  min="0"
+                  placeholder="Bathrooms"
+                  value={formData.bathrooms}
+                  onChange={handleChange}
+                  className="w-full h-11 pl-10 pr-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                />
+              </div>
+
+              <div className="relative">
+                <Maximize className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  name="area"
+                  type="number"
+                  required
+                  min="1"
+                  placeholder="Area (Sq. Ft.)"
+                  value={formData.area}
+                  onChange={handleChange}
+                  className="w-full h-11 pl-10 pr-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1.5 ml-1">Asset Availability Status</label>
+              <select
+                name="availabilityStatus"
+                value={formData.availabilityStatus}
+                onChange={handleChange}
+                className="w-full h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 text-xs font-bold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all cursor-pointer"
+              >
+                <option value="available">Available</option>
+                <option value="occupied">Occupied</option>
+                <option value="reserved">Reserved</option>
+                <option value="sold">Sold</option>
+              </select>
+            </div>
+          </div>
+
+          {/* 🏁 SUBMISSION DISPATCH BUTTON */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full h-12 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/40 text-white font-extrabold uppercase text-xs tracking-wider rounded-xl transition-all shadow-md border-0 cursor-pointer flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span>Creating Listing Record...</span>
+              </>
+            ) : (
+              <span>Create Property Listing</span>
+            )}
+          </button>
+        </form>
       </section>
     </div>
   );

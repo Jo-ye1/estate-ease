@@ -1,43 +1,179 @@
 import express from "express";
-import { registerUser, loginUser, getMe, updateProfile } from "../controllers/authController.js";
+import bcrypt from "bcryptjs";
+import { body } from "express-validator";
+import { validate } from "../middleware/validationMiddleware.js";
+import User from "../models/User.js";
+
+import {
+  registerUser,
+  loginUser,
+  getMe,
+  updateProfile,
+  socialLogin
+} from "../controllers/authController.js";
+
 import { protect } from "../middleware/authMiddleware.js";
-import upload from "../middleware/uploadMiddleware.js"; 
-import User from "../models/User.js"; // 👈 Changed from userModel.js to User.js
+import upload from "../middleware/uploadMiddleware.js";
 
 const router = express.Router();
 
-// Public Authentication Endpoints
-router.post("/register", registerUser);
-router.post("/login", loginUser);
+/* =========================================================
+   AUTH CORE
+========================================================= */
+router.post(
+  "/register",
+  [
+    body("name").notEmpty(),
+    body("email").isEmail(),
+    body("password").isLength({ min: 6 }),
+  ],
+  validate,
+  registerUser
+);
 
-// Protected User Profile Endpoints
+router.post(
+  "/login",
+  [
+    body("email").isEmail(),
+    body("password").notEmpty(),
+  ],
+  validate,
+  loginUser
+);
+
+router.post("/social-login", socialLogin);
+
+/* =========================================================
+   PASSWORD RECOVERY FLOW
+========================================================= */
+router.post("/forgot-password", async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.findOne({
+      email: email.trim().toLowerCase(),
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const token = String(Math.floor(100000 + Math.random() * 900000));
+
+    user.resetToken = token;
+    user.resetTokenExpiry = Date.now() + 15 * 60 * 1000;
+
+    await user.save();
+
+    res.json({ success: true, resetToken: token });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.post("/reset-password", async (req, res) => {
+  try {
+    const { token, password } = req.body;
+
+    const user = await User.findOne({
+      resetToken: token,
+      resetTokenExpiry: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: "Invalid or expired token" });
+    }
+
+    user.password = await bcrypt.hash(password, 10);
+    user.resetToken = null;
+    user.resetTokenExpiry = null;
+
+    await user.save();
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+/* =========================================================
+   PROTECTED USER SESSION
+========================================================= */
 router.get("/me", protect, getMe);
 router.put("/profile", protect, updateProfile);
 
-// @desc    Upload user profile avatar photo locally
-// @route   POST /api/auth/upload-avatar
-// @access  Private
-router.post("/upload-avatar", protect, upload.single("image"), async (req, res) => {
+/* =========================================================
+   FILE UPLOAD (AVATAR)
+========================================================= */
+router.post(
+  "/upload-avatar",
+  protect,
+  upload.single("image"),
+  async (req, res) => {
+    try {
+
+      if (!req.file) {
+          console.log("Upload failed: req.file missing");
+          console.log(req.body);
+      return res.status(400).json({
+          message: "No file uploaded"
+          });
+      }
+
+      const url = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+
+      const user = await User.findByIdAndUpdate(
+        req.user._id,
+        { avatar: url },
+        { new: true }
+      ).select("-password");
+
+      res.json({
+        success: true,
+        image: url,
+        user
+      });
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  }
+);
+
+router.put("/update-password", protect, async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ message: "No file snapshot uploaded" });
+    const { currentPassword, newPassword } = req.body;
+
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
     }
 
-    const localUrlPath = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
-    
-    const updatedUser = await User.findByIdAndUpdate(
-      req.user._id,
-      { avatar: localUrlPath },
-      { new: true }
-    ).select("-password");
+    const match = await bcrypt.compare(
+      currentPassword,
+      user.password
+    );
+
+    if (!match) {
+      return res.status(400).json({
+        message: "Current password incorrect",
+      });
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+
+    await user.save();
 
     res.json({
-      message: "Profile avatar uploaded successfully!",
-      image: localUrlPath,
-      user: updatedUser
+      success: true,
+      message: "Password updated",
     });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  } catch (err) {
+    res.status(500).json({
+      message: err.message,
+    });
   }
 });
 

@@ -4,72 +4,79 @@ import {
   useEffect,
   useState,
 } from "react";
-
-import { getFavorites, addFavorite, removeFavorite } from "../services/favoriteServices"; // 👈 Added 's' here
-
+import api from "@/lib/api";
 
 const FavoritesContext = createContext();
 
 export const FavoritesProvider = ({ children }) => {
   const [favorites, setFavorites] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  // Load backend favorites automatically on boot if a token exists
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      loadFavorites();
-    }
-  }, []);
+  const [loading, setLoading] = useState(true);
 
   const loadFavorites = async () => {
     try {
-      setLoading(true);
-      const data = await getFavorites();
-      // Ensure we handle array payloads fallback cleanly
-      setFavorites(Array.isArray(data) ? data : []);
+      const { data } = await api.get("/favorites");
+      setFavorites(data.favorites || data || []);
     } catch (error) {
-      console.error("Failed to load database favorites:", error.message);
+      console.error(error);
+      setFavorites([]);
     } finally {
       setLoading(false);
     }
   };
 
   const toggleFavorite = async (propertyId) => {
-    // Check if the user is authenticated first
-    const token = localStorage.getItem("token");
-    if (!token) {
-      return alert("Please login to save favorite properties.");
-    }
-
-    // Check if the item already exists in the local state list array
-    const isFavorited = favorites.some(
-      (fav) => (fav._id === propertyId || fav.property?._id === propertyId)
-    );
-
     try {
-      if (isFavorited) {
-        // Optimistic UI Update: remove from local state immediately for instant feedback
-        setFavorites((prev) => prev.filter((fav) => (fav._id !== propertyId && fav.property?._id !== propertyId)));
-        await removeFavorite(propertyId);
-      } else {
-        await addFavorite(propertyId);
-      }
+      const { data } = await api.post(`/favorites/toggle/${propertyId}`);
+      setFavorites(data.favorites || data || []);
     } catch (error) {
-      console.error("Favorite toggle synchronization failed:", error.message);
-    } finally {
-      // Refresh list to make sure state is exactly mirrors MongoDB
-      loadFavorites();
+      try {
+        const currentList = Array.isArray(favorites) ? favorites : favorites?.favorites || [];
+        const exists = currentList.some(
+          (fav) => (fav?.property?._id || fav?._id || fav) === propertyId
+        );
+
+        if (exists) {
+          const { data } = await api.delete(`/favorites/${propertyId}`);
+          setFavorites(data.favorites || data || []);
+        } else {
+          const { data } = await api.post(`/favorites/${propertyId}`);
+          if (data.favorites) {
+            setFavorites(data.favorites);
+          } else if (data.favorite) {
+            setFavorites((prev) => [...prev, data.favorite]);
+          } else {
+            loadFavorites();
+          }
+        }
+      } catch (innerError) {
+        console.error(innerError);
+      }
     }
   };
+
+  const isFavorited = (propertyId) => {
+    const currentList = Array.isArray(favorites) ? favorites : favorites?.favorites || [];
+    return currentList.some(
+      (fav) => (fav?.property?._id || fav?._id || fav) === propertyId
+    );
+  };
+
+  useEffect(() => {
+    if (localStorage.getItem("token")) {
+      loadFavorites();
+    } else {
+      setLoading(false);
+    }
+  }, []);
 
   return (
     <FavoritesContext.Provider
       value={{
         favorites,
         loading,
+        loadFavorites,
         toggleFavorite,
-        loadFavorites // Expose this so you can recall it on manual login actions
+        isFavorited,
       }}
     >
       {children}

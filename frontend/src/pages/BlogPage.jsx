@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Calendar, Clock, ArrowRight, Search } from 'lucide-react';
 import Navbar from "@/components/home/Navbar";
 
@@ -51,7 +52,7 @@ export default function BlogPage() {
     };
 
     window.addEventListener('storage', syncBlogMemory);
-    syncBlogMemory(); // Initial verification loop execution cycle
+    syncBlogMemory(); 
     return () => window.removeEventListener('storage', syncBlogMemory);
   }, []);
 
@@ -136,10 +137,14 @@ export default function BlogPage() {
 
                   {/* Read Document Dynamic Link Trigger */}
                   <div className="pt-4 border-t border-slate-100 dark:border-slate-800/60">
-                    <button className="text-xs font-black uppercase tracking-wider text-blue-600 dark:text-blue-500 hover:text-blue-700 dark:hover:text-blue-400 bg-transparent border-0 p-0 flex items-center gap-1.5 transition-colors cursor-pointer outline-none">
+                    {/* 👑 FIXED DEEP LINKING: Converted from an un-routed static button into a clean, single-page client router Link endpoint */}
+                    <Link 
+                      to={`/blog/${post.id}`} 
+                      className="text-xs font-black uppercase tracking-wider text-blue-600 dark:text-blue-500 hover:text-blue-700 dark:hover:text-blue-400 no-underline flex items-center gap-1.5 transition-colors cursor-pointer outline-none"
+                    >
                       <span>Read Full Document</span>
                       <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
-                    </button>
+                    </Link>
                   </div>
                 </div>
 
@@ -147,6 +152,7 @@ export default function BlogPage() {
             ))}
           </div>
         )}
+
       </div>
     </div>
   );

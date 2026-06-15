@@ -1,41 +1,38 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Home, Building2, Hotel, BedDouble, Warehouse } from "lucide-react"; 
+import { Home, Building2, Hotel, Palmtree, Warehouse, Briefcase, Globe } from "lucide-react"; 
 import { getProperties } from "@/services/propertyService";
 
 export default function PropertyTypes() {
   const navigate = useNavigate();
   const [activeSlide, setActiveSlide] = useState(1);
   
-  // State to hold the live counts for each type
-  const [counts, setCounts] = useState({ House: 0, Apartment: 0, Hotel: 0, Villa: 0, Warehouse: 0 });
+  const [counts, setCounts] = useState({ House: 0, Apartment: 0, Hotel: 0, Villa: 0, Office: 0, Land: 0 });
 
   useEffect(() => {
     const calculateLiveInventoryMetrics = async () => {
       try {
-        // 1. Fetch from the backend database pool
         let dbData = [];
         try { dbData = await getProperties(); } catch (e) {}
         const baseProperties = Array.isArray(dbData) ? dbData : [];
 
-        // 2. Fetch from your local storage creation wizard pool
         const storedProperties = localStorage.getItem("estate_ease_properties");
         const cachedProperties = storedProperties ? JSON.parse(storedProperties) : [];
 
-        // 3. Unify both collections to calculate true active metrics totals
         const totalCollection = [...cachedProperties, ...baseProperties];
 
-        // 4. Reduce into category counters matching your schema slugs
         const metricsMap = totalCollection.reduce((acc, item) => {
-          // Normalize names to handle both uppercase and lowercase matches safely
-          const currentType = (item.type || "").toUpperCase();
+          const categoryField = item.propertyCategory || item.type || "";
+          const currentType = categoryField.toUpperCase();
+          
           if (currentType === "HOUSE") acc.House += 1;
           if (currentType === "APARTMENT") acc.Apartment += 1;
           if (currentType === "HOTEL") acc.Hotel += 1;
           if (currentType === "VILLA") acc.Villa += 1;
-          if (currentType === "WAREHOUSE") acc.Warehouse += 1;
+          if (currentType === "OFFICE") acc.Office += 1;
+          if (currentType === "LAND") acc.Land += 1;
           return acc;
-        }, { House: 0, Apartment: 0, Hotel: 0, Villa: 0, Warehouse: 0 });
+        }, { House: 0, Apartment: 0, Hotel: 0, Villa: 0, Office: 0, Land: 0 });
 
         setCounts(metricsMap);
       } catch (err) {
@@ -46,18 +43,18 @@ export default function PropertyTypes() {
   }, []);
 
   const formatsList = [
-    { label: "Private House", count: `${counts.House} Listings`, icon: Home, slug: "House" },
-    { label: "Apartment", count: `${counts.Apartment} Listings`, icon: Building2, slug: "Apartment" },
-    { label: "Exclusive Hotel", count: `${counts.Hotel} Listings`, icon: Hotel, slug: "Hotel" }, 
-    { label: "Private Room", count: `${counts.Villa} Listings`, icon: BedDouble, slug: "Villa" },
-    { label: "Warehouse", count: `${counts.Warehouse} Listings`, icon: Warehouse, slug: "Warehouse" },
+    { label: "House", count: `${counts.House} Listings`, icon: Home, slug: "house" },
+    { label: "Apartment", count: `${counts.Apartment} Listings`, icon: Building2, slug: "apartment" },
+    { label: "Villa", count: `${counts.Villa} Listings`, icon: Palmtree, slug: "villa" },
+    { label: "Hotel Block", count: `${counts.Hotel} Listings`, icon: Hotel, slug: "hotel" }, 
+    { label: "Office Space", count: `${counts.Office} Listings`, icon: Briefcase, slug: "office" },
+    { label: "Commercial Land", count: `${counts.Land} Listings`, icon: Globe, slug: "land" },
   ];
 
   return (
     <section className="max-w-[1320px] mx-auto px-4 my-16 select-none text-left">
       <div className="w-full flex flex-col relative bg-transparent transition-colors duration-200">
         
-        {/* HEADER SECTION ROW WITH ACCENT LINE */}
         <div className="mb-12 relative inline-block max-w-max">
           <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight pb-3">
             Property <span className="text-blue-600 dark:text-blue-500">Types</span>
@@ -65,28 +62,26 @@ export default function PropertyTypes() {
           <div className="absolute bottom-0 left-0 w-3/4 h-[2px] bg-blue-600 dark:bg-blue-500 rounded-full" />
         </div>
 
-        {/* ITEMS DECK */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-8 py-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-6 py-6">
           {formatsList.map((category, index) => {
             const IconComponent = category.icon;
 
             return (
               <div 
                 key={index} 
-                onClick={() => navigate(`/properties?type=${category.slug}`)}
+                onClick={() => navigate(`/properties?search=${category.slug}`)}
                 className="flex flex-col items-center justify-center text-center cursor-pointer group bg-transparent transform hover:-translate-y-0.5 duration-200"
               >
-                {/* DYNAMIC SHADOW CONTRAST CARD BUBBLE FRAME */}
-                <div className="w-24 h-24 rounded-full bg-gradient-to-b from-white to-slate-50/60 dark:from-slate-800 dark:to-slate-900/60 flex items-center justify-center border border-slate-100 dark:border-slate-800/80 shadow-[0_16px_32px_rgba(11,79,185,0.04)] dark:shadow-[0_16px_32px_rgba(0,0,0,0.3)] relative group-hover:border-blue-500/40 transition-colors">
-                  <IconComponent className="w-8 h-8 text-blue-600 dark:text-blue-400 stroke-[1.8] filter drop-shadow-[0_2px_4px_rgba(11,79,185,0.1)] group-hover:scale-105 transition-transform" />
+                <div className="w-20 h-20 rounded-full bg-gradient-to-b from-white to-slate-50/60 dark:from-slate-800 dark:to-slate-900/60 flex items-center justify-center border border-slate-100 dark:border-slate-800/80 shadow-[0_16px_32px_rgba(11,79,185,0.04)] dark:shadow-[0_16px_32px_rgba(0,0,0,0.3)] relative group-hover:border-blue-500/40 transition-colors">
+                  <IconComponent className="w-7 h-7 text-blue-600 dark:text-blue-400 stroke-[1.8] filter drop-shadow-[0_2px_4px_rgba(11,79,185,0.1)] group-hover:scale-105 transition-transform" />
                   <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-transparent via-white/5 to-white/15 pointer-events-none" />
                 </div>
                 
-                <h4 className="font-bold text-[14px] mt-5 text-slate-800 dark:text-slate-200 tracking-tight">
+                <h4 className="font-bold text-xs mt-4 text-slate-800 dark:text-slate-200 tracking-tight">
                   {category.label}
                 </h4>
                 
-                <span className="text-[10.5px] font-bold text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800/60 px-3.5 py-1 rounded-full mt-2.5 tracking-wide shadow-xs group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800/60 px-3 py-0.5 rounded-full mt-2 tracking-wide shadow-xs group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                   {category.count}
                 </span>
               </div>
@@ -94,7 +89,6 @@ export default function PropertyTypes() {
           })}
         </div>
 
-        {/* DOT INDICATOR CONTROLS */}
         <div className="flex justify-center items-center gap-1.5 mt-10">
           {[0, 1, 2].map((idx) => (
             <button

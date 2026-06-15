@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+import { Home, Share2 } from "lucide-react"; // 👈 Added Share2 for your Socials tab icon
+import HomeManager from "./HomeManager";
+
 import { 
   Info, 
   BookOpen, 
@@ -13,15 +16,21 @@ import BlogManager from './BlogManager';
 import ContactManager from './ContactManager';
 import TermsManager from './TermsManager';
 import FaqManager from './FaqManager';
+import SocialsManager from './SocialsManager'; // 👈 👑 Imported your new Socials backend synchronizer node here
 
 export default function AdminSettingsDashboard() {
   const [activeTab, setActiveTab] = useState('about');
 
   // --- Configuration Navigation Map Schema ---
   const navigationItems = [
+    { id: 'home_cms', label: 'HOME PAGE CMS', icon: Home },
     { id: 'about', label: 'About Page', icon: Info },
     { id: 'blog', label: 'Blog Journal', icon: BookOpen },
     { id: 'contact', label: 'Contact Settings', icon: Mail },
+    
+    // 👑 MOUNTED DYNAMIC MODULE TAB ENTRY POINT RIGHT HERE
+    { id: 'socials', label: 'Socials & Footer', icon: Share2 },
+    
     { id: 'terms', label: 'Terms & Privacy', icon: FileText },
     { id: 'faq', label: 'FAQ Accordions', icon: HelpCircle },
   ];
@@ -45,7 +54,7 @@ export default function AdminSettingsDashboard() {
                   key={item.id}
                   type="button"
                   onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border-0 cursor-pointer ${
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border-0 cursor-pointer text-left ${
                     isSelected
                       ? 'bg-blue-600 text-white shadow-md shadow-blue-500/10'
                       : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900/60 hover:text-slate-900 dark:hover:text-white'
@@ -59,14 +68,15 @@ export default function AdminSettingsDashboard() {
           </nav>
         </aside>
 
-        {/* Workspace Dynamic Core Engine Slot */}
-        <main className="flex-1 w-full min-w-0">
-          {activeTab === 'about' && <AboutManager />}
-          {activeTab === 'blog' && <BlogManager />}
-          {activeTab === 'contact' && <ContactManager />}
-          {activeTab === 'terms' && <TermsManager />}
-          {activeTab === 'faq' && <FaqManager />}
-        </main>
+<main className="flex-1 w-full min-w-0">
+  {activeTab === 'home_cms' && <HomeManager />}
+  {activeTab === 'about' && <AboutManager />}
+  {activeTab === 'blog' && <BlogManager />}
+  {activeTab === 'contact' && <ContactManager />}
+  {activeTab === 'socials' && <SocialsManager />} 
+  {activeTab === 'terms' && <TermsManager />}
+  {activeTab === 'faq' && <FaqManager />}
+</main>
         
       </div>
     </div>

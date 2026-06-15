@@ -5,42 +5,59 @@ const userSchema = new mongoose.Schema(
     name: {
       type: String,
       required: true,
+      trim: true,
     },
 
     email: {
       type: String,
       required: true,
       unique: true,
+      lowercase: true,
+      trim: true,
     },
 
     password: {
       type: String,
-      required: true,
+      default: null,
     },
 
     role: {
       type: String,
-      enum: ["user", "admin"],
+      enum: [
+        "user",
+        "owner",
+        "admin",
+        "super_admin",
+      ],
       default: "user",
     },
 
-    // Inside your user Schema definition block, add this key:
     avatar: {
-        type: String,
-        default: "" // Fallback initialization defaults to empty text string
+      type: String,
+      default: "",
     },
 
-    // Tracks properties marked as favorites by storing cross-referenced MongoDB IDs
-    favorites: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Property",
-      },
-    ],
+    resetToken: {
+      type: String,
+      default: null,
+    },
+
+    resetTokenExpiry: {
+      type: Date,
+      default: null,
+    },
+
+    phone: {
+      type: String,
+      default: "",
+    },
   },
   {
     timestamps: true,
   }
 );
 
-export default mongoose.model("User", userSchema);
+export default mongoose.model(
+  "User",
+  userSchema
+);

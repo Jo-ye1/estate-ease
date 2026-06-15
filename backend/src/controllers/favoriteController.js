@@ -1,16 +1,24 @@
-import User from "../models/User.js";
+import Favorite from "../models/Favorite.js";
+import Property from "../models/Property.js";
 
-// @desc    Get logged in user's favorite properties
-// @route   GET /api/favorites
 export const getFavorites = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).populate("favorites");
+    const favorites = await Favorite.find({
+      user: req.user._id,
+    })
+      .populate({
+        path: "property",
+        populate: {
+          path: "owner",
+          select: "name email avatar",
+        },
+      })
+      .sort({ createdAt: -1 });
 
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    res.json(user.favorites || []);
+    res.json({
+      success: true,
+      favorites,
+    });
   } catch (error) {
     res.status(500).json({
       message: error.message,
@@ -18,32 +26,47 @@ export const getFavorites = async (req, res) => {
   }
 };
 
-// @desc    Add a property to favorites
-// @route   POST /api/favorites/:propertyId
 export const addFavorite = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
+    const { propertyId } = req.params;
 
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    const property = await Property.findById(propertyId);
 
-    // Convert ObjectIds to strings to accurately verify duplicates
-    const isAlreadyFavorite = user.favorites.some(
-      (fav) => fav.toString() === req.params.propertyId
-    );
-
-    if (isAlreadyFavorite) {
-      return res.status(400).json({
-        message: "Property is already in favorites",
+    if (!property) {
+      return res.status(404).json({
+        message: "Property not found",
       });
     }
 
-    user.favorites.push(req.params.propertyId);
-    await user.save();
+    const existing = await Favorite.findOne({
+      user: req.user._id,
+      property: propertyId,
+    });
 
-    res.json({
-      message: "Added to favorites",
+    if (existing) {
+      return res.status(400).json({
+        message: "Already favorited",
+      });
+    }
+
+    const favorite = await Favorite.create({
+      user: req.user._id,
+      property: propertyId,
+    });
+
+    const populatedFavorite = await Favorite.findById(
+      favorite._id
+    ).populate({
+      path: "property",
+      populate: {
+        path: "owner",
+        select: "name email avatar",
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      favorite: populatedFavorite,
     });
   } catch (error) {
     res.status(500).json({
@@ -52,25 +75,75 @@ export const addFavorite = async (req, res) => {
   }
 };
 
-// @desc    Remove a property from favorites
-// @route   DELETE /api/favorites/:propertyId
 export const removeFavorite = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
+    const { propertyId } = req.params;
 
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    await Favorite.findOneAndDelete({
+      user: req.user._id,
+      property: propertyId,
+    });
 
-    // Filter out the requested property ID out of the User array reference
-    user.favorites = user.favorites.filter(
-      (fav) => fav.toString() !== req.params.propertyId
-    );
-
-    await user.save();
+    const favorites = await Favorite.find({
+      user: req.user._id,
+    }).populate({
+      path: "property",
+      populate: {
+        path: "owner",
+        select: "name email avatar",
+      },
+    });
 
     res.json({
-      message: "Removed from favorites",
+      success: true,
+      favorites,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+export const toggleFavorite = async (req, res) => {
+  try {
+    const { propertyId } = req.params;
+
+    const existing = await Favorite.findOne({
+      user: req.user._id,
+      property: propertyId,
+    });
+
+    if (existing) {
+      await existing.deleteOne();
+    } else {
+      const property = await Property.findById(propertyId);
+
+      if (!property) {
+        return res.status(404).json({
+          message: "Property not found",
+        });
+      }
+
+      await Favorite.create({
+        user: req.user._id,
+        property: propertyId,
+      });
+    }
+
+    const favorites = await Favorite.find({
+      user: req.user._id,
+    }).populate({
+      path: "property",
+      populate: {
+        path: "owner",
+        select: "name email avatar",
+      },
+    });
+
+    res.json({
+      success: true,
+      favorites,
     });
   } catch (error) {
     res.status(500).json({

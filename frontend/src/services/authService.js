@@ -1,25 +1,55 @@
-import axios from "axios";
 import api from "@/lib/api";
 
-const API_URL = "http://localhost:5000/api/auth";
-
-// Sends payload data to the backend registration collection
 export const registerUserAPI = async (userData) => {
-  const response = await axios.post(`${API_URL}/register`, userData);
-  return response.data; // Contains user info object and a signed JWT token
+  const { data } = await api.post("/auth/register", userData);
+  return data;
 };
 
-// Validates credentials against your hashed database keys
 export const loginUserAPI = async (credentials) => {
-  const response = await axios.post(`${API_URL}/login`, credentials);
-  return response.data; // Contains user info object and a signed JWT token
+  const { data } = await api.post("/auth/login", credentials);
+  return data;
 };
 
-/**
- * Register a user's contact email parameters into the marketing leads collection
- * @route POST /api/newsletter/subscribe
- */
-export const subscribeToNewsletter = async (emailString) => {
-  const { data } = await api.post("/newsletter/subscribe", { email: emailString });
+export const subscribeToNewsletter = async (email) => {
+  const { data } = await api.post("/newsletter/subscribe", {
+    email,
+  });
+
+  return data;
+};
+
+export const getMe = async () => {
+  const { data } = await api.get("/auth/me");
+  return data;
+};
+
+export const updateProfile = async (profileData) => {
+  const { data } = await api.put("/auth/profile", profileData);
+  return data;
+};
+
+export const updatePassword = async (passwordData) => {
+  const { data } = await api.put(
+    "/auth/update-password",
+    passwordData
+  );
+
+  return data;
+};
+
+export const uploadAvatar = async (imageFile) => {
+  const formData = new FormData();
+  formData.append("image", imageFile);
+
+  const { data } = await api.post(
+    "/auth/upload-avatar",
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
+  );
+
   return data;
 };
