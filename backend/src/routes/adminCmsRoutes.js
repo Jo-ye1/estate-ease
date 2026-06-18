@@ -10,6 +10,8 @@ import {
   FaqModel,
   HomeCmsModel,
 } from "../models/CmsSettings.js";
+import Workflow from "../models/WorkflowModel.js";
+
 
 const router = express.Router();
 
@@ -39,10 +41,24 @@ const upload = multer({ storage });
 router.get("/about", async (req, res) => {
   try {
     let data = await AboutModel.findOne();
-    if (!data) data = await AboutModel.create({});
-    res.json(data);
+
+    if (!data) {
+      data = await AboutModel.create({
+        heading: "",
+        subheading: "",
+        paragraph: "",
+        heroImage: "",
+        pillars: [],
+        history: [],
+        advisors: [],
+      });
+    }
+
+    return res.status(200).json(data);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({
+      error: error.message,
+    });
   }
 });
 
@@ -54,75 +70,49 @@ router.put("/about", async (req, res) => {
       paragraph,
       heroImage,
       pillars,
-      historyTimeline,
+      history,
       advisors,
     } = req.body;
 
-    const updated = await AboutModel.findOneAndUpdate(
-      {},
-      {
-        heading,
-        subheading,
-        paragraph,
-        heroImage,
-        pillars,
-        historyTimeline: historyTimeline || [],
-        advisors,
-      },
-      {
-        new: true,
-        upsert: true,
-      }
-    );
+    const cleanHistoryPayload = Array.isArray(history)
+      ? history.map((item) => ({
+          year: String(item.year || "2026"),
+          title: String(item.title || ""),
+          body: String(item.body || ""),
+        }))
+      : [];
 
-    res.status(200).json(updated);
+    let existing = await AboutModel.findOne();
+
+    if (!existing) {
+      existing = await AboutModel.create({
+        heading: "",
+        subheading: "",
+        paragraph: "",
+        heroImage: "",
+        pillars: [],
+        history: [],
+        advisors: [],
+      });
+    }
+
+    existing.heading = heading || "";
+    existing.subheading = subheading || "";
+    existing.paragraph = paragraph || "";
+    existing.heroImage = heroImage || "";
+    existing.pillars = Array.isArray(pillars) ? pillars : [];
+    existing.advisors = Array.isArray(advisors) ? advisors : [];
+    existing.history = cleanHistoryPayload;
+
+    await existing.save();
+
+    return res.status(200).json(existing);
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       error: error.message,
     });
   }
 });
-
-router.post(
-  "/about/hero",
-  upload.single("aboutHeroImage"),
-  async (req, res) => {
-    try {
-      const {
-        heading,
-        subheading,
-        paragraph,
-        currentHeroImage,
-      } = req.body;
-
-      let heroPath = currentHeroImage || "";
-
-      if (req.file) {
-        heroPath = `/uploads/advisors/${req.file.filename}`;
-      }
-
-      const updated = await AboutModel.findOneAndUpdate(
-        {},
-        {
-          heading,
-          subheading,
-          paragraph,
-          heroImage: heroPath,
-        },
-        {
-          new: true,
-          upsert: true,
-        }
-      );
-
-      res.status(200).json(updated);
-    } catch (error) {
-      res.status(500).json({
-        error: error.message,
-      });
-    }
-  }
-);
 
 router.post("/about/pillars", async (req, res) => {
   try {
@@ -130,9 +120,11 @@ router.post("/about/pillars", async (req, res) => {
 
     const updated = await AboutModel.findOneAndUpdate(
       {},
-      { pillars },
+      { 
+        $set: { pillars } 
+      },
       {
-        new: true,
+        returnDocument: "after",
         upsert: true,
       }
     );
@@ -150,32 +142,25 @@ router.post(
   upload.array("advisorImages", 12),
   async (req, res) => {
     try {
-      const advisorsData = JSON.parse(
-        req.body.advisorsData || "[]"
-      );
-
-      const imageIndices = [].concat(
-        req.body.imageIndices || []
-      );
+      const advisorsData = JSON.parse(req.body.advisorsData || "[]");
+      const imageIndices = [].concat(req.body.imageIndices || []);
 
       if (req.files?.length > 0) {
         req.files.forEach((file, index) => {
-          const targetIndex = parseInt(
-            imageIndices[index]
-          );
-
+          const targetIndex = parseInt(imageIndices[index]);
           if (advisorsData[targetIndex]) {
-            advisorsData[targetIndex].image =
-              `/uploads/advisors/${file.filename}`;
+            advisorsData[targetIndex].image = `/uploads/advisors/${file.filename}`;
           }
         });
       }
 
       const updated = await AboutModel.findOneAndUpdate(
         {},
-        { advisors: advisorsData },
+        { 
+          $set: { advisors: advisorsData } 
+        },
         {
-          new: true,
+          returnDocument: "after",
           upsert: true,
         }
       );
@@ -189,6 +174,7 @@ router.post(
   }
 );
 
+
 router.get("/blog", async (req, res) => {
   try {
     let data = await BlogModel.findOne();
@@ -199,15 +185,34 @@ router.get("/blog", async (req, res) => {
   }
 });
 
-router.post("/blog/meta", async (req, res) => {
+router.put("/blog", async (req, res) => {
   try {
-    const { journalTitle, journalSub } = req.body;
+    const { journalTitle, journalSub, posts } = req.body;
+    const sourcePostsArray = Array.isArray(posts) ? posts : [];
+
+    const cleanPostsPayload = sourcePostsArray.map((post, idx) => {
+      let numericId = Number(post.id);
+      if (isNaN(numericId) || String(post.id).startsWith("temp-")) {
+        numericId = Date.now() + idx;
+      }
+      return {
+        id: numericId,
+        title: String(post.title || ""),
+        category: String(post.category || "MEDIA"),
+        date: String(post.date || new Date().toISOString().split('T')[0]),
+        readTime: String(post.readTime || "5 MIN READ"),
+        excerpt: String(post.excerpt || ""),
+        content: String(post.content || ""),
+        image: String(post.image || "")
+      };
+    });
 
     const updated = await BlogModel.findOneAndUpdate(
       {},
       {
         journalTitle,
         journalSub,
+        posts: cleanPostsPayload,
       },
       {
         new: true,
@@ -215,57 +220,12 @@ router.post("/blog/meta", async (req, res) => {
       }
     );
 
-    res.json(updated);
+    res.status(200).json(updated);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-router.put("/blog/posts/:id", async (req, res) => {
-  try {
-    const postId = Number(req.params.id);
-    const postData = req.body;
-
-    let doc = await BlogModel.findOne();
-    if (!doc) doc = new BlogModel();
-
-    doc.posts = doc.posts.filter(
-      (post) => post.id !== postId
-    );
-
-    doc.posts.push({
-      id: postId,
-      ...postData,
-    });
-
-    await doc.save();
-
-    res.json(doc);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.delete("/blog/posts/:id", async (req, res) => {
-  try {
-    const postId = Number(req.params.id);
-
-    const doc = await BlogModel.findOne();
-
-    if (doc) {
-      doc.posts = doc.posts.filter(
-        (post) => post.id !== postId
-      );
-      await doc.save();
-    }
-
-    res.json({
-      message: "Post removed successfully",
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
 router.get("/contact", async (req, res) => {
   try {
@@ -294,10 +254,11 @@ router.post("/contact/details", async (req, res) => {
   }
 });
 
+// 🟢 NEW TERMS & COMPLIANCE DATABASE SCHEMA ROUTER ENDPOINTS
 router.get("/terms", async (req, res) => {
   try {
     let data = await TermsModel.findOne();
-    if (!data) data = await TermsModel.create({});
+    if (!data) data = await TermsModel.create({ protocols: [] });
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -306,66 +267,47 @@ router.get("/terms", async (req, res) => {
 
 router.post("/terms/meta", async (req, res) => {
   try {
-    const { sectionHeading, sectionSub } = req.body;
+    const updated = await TermsModel.findOneAndUpdate(
+      {},
+      { heading: req.body.heading, subheading: req.body.subheading },
+      { new: true, upsert: true }
+    );
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
+router.post("/terms/protocols", async (req, res) => {
+  try {
+    const updated = await TermsModel.findOneAndUpdate(
+      {},
+      { protocols: req.body.protocols },
+      { new: true, upsert: true }
+    );
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/terms/integrity", async (req, res) => {
+  try {
     const updated = await TermsModel.findOneAndUpdate(
       {},
       {
-        sectionHeading,
-        sectionSub,
+        integrityTitle: req.body.integrityTitle,
+        integrityP1: req.body.integrityP1,
+        integrityP2: req.body.integrityP2
       },
-      {
-        new: true,
-        upsert: true,
-      }
+      { new: true, upsert: true }
     );
-
     res.json(updated);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-router.post("/terms/sidebar", async (req, res) => {
-  try {
-    const updated = await TermsModel.findOneAndUpdate(
-      {},
-      req.body,
-      {
-        new: true,
-        upsert: true,
-      }
-    );
-
-    res.json(updated);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.put("/terms/clauses/:id", async (req, res) => {
-  try {
-    const clauseId = Number(req.params.id);
-
-    let doc = await TermsModel.findOne();
-    if (!doc) doc = new TermsModel();
-
-    doc.protocols = doc.protocols.filter(
-      (item) => item.id !== clauseId
-    );
-
-    doc.protocols.push({
-      id: clauseId,
-      ...req.body,
-    });
-
-    await doc.save();
-
-    res.json(doc);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
 router.get("/faq", async (req, res) => {
   try {
@@ -445,3 +387,64 @@ router.put("/home-cms", async (req, res) => {
 });
 
 export default router;
+
+// 🟢 GET WORKFLOW FRAMEWORK CONTENT
+router.get("/workflow", async (req, res) => {
+  try {
+    let data = await Workflow.findOne();
+    if (!data) {
+      data = await Workflow.create({
+        steps: [
+          { id: 1, iconName: "Search", tag: "STEP 01", title: "Explore Listings", desc: "Browse through an elite selection of verified real-estate ecosystems." },
+          { id: 2, iconName: "MessageSquare", tag: "STEP 02", title: "Connect Instantly", desc: "Engage with corporate operators and executive advisors directly." },
+          { id: 3, iconName: "Key", tag: "STEP 03", title: "Secure Your Asset", desc: "Finalize transactions seamlessly within an optimized layer." }
+        ]
+      });
+    }
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 🟢 UPDATE HERO & META TEXT STRINGS
+router.post("/workflow/meta", async (req, res) => {
+  try {
+    const updated = await Workflow.findOneAndUpdate(
+      {},
+      {
+        heroBadge: req.body.heroBadge,
+        heroTitle: req.body.heroTitle,
+        heroDesc: req.body.heroDesc,
+        ctaTitle: req.body.ctaTitle,
+        ctaDesc: req.body.ctaDesc,
+        sectionBadge: req.body.sectionBadge,
+        sectionTitle: req.body.sectionTitle
+      },
+      { new: true, upsert: true }
+    );
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 🟢 UPDATE INDIVIDUAL ACCORDION WORKFLOW STEPS
+router.put("/workflow/steps/:id", async (req, res) => {
+  try {
+    const stepId = Number(req.params.id);
+    let doc = await Workflow.findOne();
+    if (!doc) doc = new Workflow();
+
+    doc.steps = doc.steps.filter((item) => item.id !== stepId);
+    doc.steps.push({ id: stepId, ...req.body });
+    
+    // Sort array chronologically before disk commitment save
+    doc.steps.sort((a, b) => a.id - b.id);
+    await doc.save();
+
+    res.json(doc);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+  });

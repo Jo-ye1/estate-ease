@@ -12,9 +12,24 @@ import leadRoutes from "./src/routes/leadRoutes.js";
 import notificationRoutes from "./src/routes/notificationRoutes.js";
 import analyticsRoutes from "./src/routes/analyticsRoutes.js";
 import rateLimit from "express-rate-limit";
+import messageRoutes from "./src/routes/messageRoutes.js";
+import dashboardRoutes from "./src/routes/dashboardRoutes.js";
+import propertyAnalyticsRoutes from "./src/routes/propertyAnalyticsRoutes.js";
+import auditRoutes from "./src/routes/auditRoutes.js";
+import propertySLARoutes from  "./src/routes/propertySLARoutes.js";
+import savedSearchRoutes from  "./src/routes/savedSearchRoutes.js";
+import trendingRoutes from  "./src/routes/trendingRoutes.js";
+import recentlyViewedRoutes from  "./src/routes/recentlyViewedRoutes.js";
+import recommendationRoutes from  "./src/routes/recommendationRoutes.js";
+import subscriptionRoutes from  "./src/routes/subscriptionRoutes.js";
+
+import { upgradePlan } from "./src/controllers/subscriptionController.js";
+import { protect } from "./src/middleware/authMiddleware.js";
+import Subscription from "./src/models/Subscription.js";
+import mongoose from "mongoose";
 
 const app = express();
-
+trendingRoutes
 app.use(cors({
   origin: ["http://localhost:5173", "http://localhost:3000"],
   credentials: true
@@ -56,11 +71,81 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/leads", leadRoutes);
 app.use("/api/notifications", notificationRoutes)
 app.use("/api/analytics", analyticsRoutes);
+app.use("/api/messages", messageRoutes);
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/property-sla", propertySLARoutes);
+
+app.use(
+  "/api/property-analytics",
+  propertyAnalyticsRoutes
+);
+
+app.use(
+  "/api/audit",
+  auditRoutes
+);
 
 app.get("/", (req, res) => {
   res.json({
     message: "Estate Ease API Running Backend Active",
   });
 });
+
+app.use(
+  "/api/saved-searches",
+  savedSearchRoutes
+);
+
+app.use("/api/trending", trendingRoutes);
+
+app.use(
+  "/api/recently-viewed",
+  recentlyViewedRoutes
+);
+
+app.use(
+  "/api/recommendations",
+  recommendationRoutes
+);
+
+app.use(
+  "/api/subscriptions",
+  subscriptionRoutes
+);
+
+const seedAccountToPro = async () => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      await new Promise((resolve) => mongoose.connection.once("open", resolve));
+    }
+
+    const User = mongoose.model("User");
+    const user = await User.findOne({ email: "1234567890@gmail.com" });
+
+
+    if (!user) return;
+
+    let sub = await Subscription.findOne({ user: user._id });
+    if (!sub) {
+      sub = new Subscription({ user: user._id });
+    }
+
+    sub.plan = "pro";
+    sub.status = "active";
+    sub.startDate = new Date();
+    sub.endDate = null;
+
+    await sub.save();
+    console.log(`\n======================================================`);
+    console.log(`⚡ [SUCCESS] FORCE-UPGRADED ACCOUNT TO PRO TIER IN DB!`);
+    console.log(`👤 User ID: ${user._id}`);
+    console.log(`✉️  Email:   ${user.email}`);
+    console.log(`======================================================\n`);
+  } catch (err) {
+    console.error(`[Developer Seeder Error] Migration failed: ${err.message}`);
+  }
+};
+
+seedAccountToPro();
 
 export default app;

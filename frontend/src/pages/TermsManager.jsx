@@ -1,59 +1,85 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Plus, Trash2, Shield } from 'lucide-react';
+import axios from 'axios'; // 🟢 Added to pipe compliance variables to MongoDB
 
 export default function TermsManager() {
-  // --- 1. State Hooks initialized natively with LocalStorage data or defaults ---
-  const [sectionHeading, setSectionHeading] = useState(() => localStorage.getItem('terms_heading') || "Terms of Service & Privacy Policy");
-  const [sectionSub, setSectionSub] = useState(() => localStorage.getItem('terms_subheading') || "Review our verified corporate rules, asset tracking legal codes, and safety procedures.");
+  const [sectionHeading, setSectionHeading] = useState("Terms of Service & Privacy Policy");
+  const [sectionSub, setSectionSub] = useState("Review our verified corporate rules, asset tracking legal codes, and safety procedures.");
   
-  const [legalIntegrityTitle, setLegalIntegrityTitle] = useState(() => localStorage.getItem('terms_integrity_title') || "LEGAL INTEGRITY");
-  const [integrityPoint1, setIntegrityPoint1] = useState(() => localStorage.getItem('terms_integrity_p1') || "Your database profiles data arrays utilize localized environment layer encryptions natively.");
-  const [integrityPoint2, setIntegrityPoint2] = useState(() => localStorage.getItem('terms_integrity_p2') || "Terms apply automatically to all system operators upon creating an app routing session token.");
+  const [legalIntegrityTitle, setLegalIntegrityTitle] = useState("LEGAL INTEGRITY");
+  const [integrityPoint1, setIntegrityPoint1] = useState("Your database profiles data arrays utilize localized environment layer encryptions natively.");
+  const [integrityPoint2, setIntegrityPoint2] = useState("Terms apply automatically to all system operators upon creating an app routing session token.");
 
-  const [protocols, setProtocols] = useState(() => {
-    const saved = localStorage.getItem('terms_protocols');
-    return saved ? JSON.parse(saved) : [
-      {
-        id: 1,
-        numLabel: "01",
-        title: "Data Indexation & Verification Protocol",
-        content: "When listing properties on EstateEase, operators grant our servers a global license to map, store, and distribute metadata documents. We enforce severe penalties, including total account purges from MongoDB collection structures, if pricing variables contain false data strings."
-      },
-      {
-        id: 2,
-        numLabel: "02",
-        title: "User Authenticity & Profile Security",
-        content: "You are solely responsible for protecting your session token parameters. Password updates modified inside your Account Profile suite hash natively inside database tiers. Master Admins reserve the right to audit and manage permissions to prevent system exploitation bugs."
-      },
-      {
-        id: 3,
-        numLabel: "03",
-        title: "Closing Settlements & Fees",
-        content: "Marketplace values represent gross asset dimensions. Transaction clearing parameters executed via verified broker panels are governed under local regulatory real estate escrow codes. Processing settlement closures triggers platform event history log generation automatically."
+  const [protocols, setProtocols] = useState([]);
+
+  // --- 🟢 SYNC CURRENT LIVE STATE STRING TRACKS FROM MONGO ON MOUNT ---
+  useEffect(() => {
+    const loadTermsDataFromDatabase = async () => {
+      try {
+        const response = await axios.get("http://localhost:5000/api/admin-settings/terms");
+        const doc = response.data;
+        if (doc) {
+          if (doc.heading) setSectionHeading(doc.heading);
+          if (doc.subheading) setSectionSub(doc.subheading);
+          if (doc.integrityTitle) setLegalIntegrityTitle(doc.integrityTitle);
+          if (doc.integrityP1) setIntegrityPoint1(doc.integrityP1);
+          if (doc.integrityP2) setIntegrityPoint2(doc.integrityP2);
+          if (doc.protocols) setProtocols(doc.protocols);
+        }
+      } catch (err) {
+        console.error("Failed to load legal matrix variables:", err);
       }
-    ];
-  });
+    };
+    loadTermsDataFromDatabase();
+  }, []);
 
-  // --- 2. Pure LocalStorage Save Operations ---
-  const handleUpdateGlobalMeta = (e) => {
+  // --- 🟢 FIXED GLOBAL METADATA SAVE: Writes headings text fields to server ---
+  const handleUpdateGlobalMeta = async (e) => {
     e.preventDefault();
-    localStorage.setItem('terms_heading', sectionHeading);
-    localStorage.setItem('terms_subheading', sectionSub);
-    alert("Terms Component Global Context Synchronized!");
+    try {
+      const payload = { heading: sectionHeading, subheading: sectionSub };
+      await axios.post("http://localhost:5000/api/admin-settings/terms/meta", payload);
+      
+      localStorage.setItem('terms_heading', sectionHeading);
+      localStorage.setItem('terms_subheading', sectionSub);
+      alert("Terms Component Global Context Synchronized in MongoDB!");
+    } catch (err) {
+      alert("Metadata sync error: " + err.message);
+    }
   };
 
-  const handleUpdateAllProtocols = (e) => {
+  // --- 🟢 FIXED PROTOCOLS LIST SAVE: Updates the whole active compliance statement array ---
+  const handleUpdateAllProtocols = async (e) => {
     e.preventDefault();
-    localStorage.setItem('terms_protocols', JSON.stringify(protocols));
-    alert("All Compliance Clause Statement Tiers written inside browser memory!");
+    try {
+      const payload = { protocols: protocols };
+      await axios.post("http://localhost:5000/api/admin-settings/terms/protocols", payload);
+      
+      localStorage.setItem('terms_protocols', JSON.stringify(protocols));
+      alert("All Compliance Clause Statement Tiers written inside MongoDB collection document!");
+    } catch (err) {
+      alert("Failed to sync legal clauses: " + err.message);
+    }
   };
 
-  const handleUpdateSidebarCard = (e) => {
+  // --- 🟢 FIXED UTILITY PANEL SAVE: Submits static side card information ---
+  const handleUpdateSidebarCard = async (e) => {
     e.preventDefault();
-    localStorage.setItem('terms_integrity_title', legalIntegrityTitle);
-    localStorage.setItem('terms_integrity_p1', integrityPoint1);
-    localStorage.setItem('terms_integrity_p2', integrityPoint2);
-    alert("Legal Integrity Static Utility Panel Saved!");
+    try {
+      const payload = {
+        integrityTitle: legalIntegrityTitle,
+        integrityP1: integrityPoint1,
+        integrityP2: integrityPoint2
+      };
+      await axios.post("http://localhost:5000/api/admin-settings/terms/integrity", payload);
+
+      localStorage.setItem('terms_integrity_title', legalIntegrityTitle);
+      localStorage.setItem('terms_integrity_p1', integrityPoint1);
+      localStorage.setItem('terms_integrity_p2', integrityPoint2);
+      alert("Legal Integrity Static Utility Panel Saved to MongoDB Cloud!");
+    } catch (err) {
+      alert("Sidebar panel sync failure: " + err.message);
+    }
   };
 
   const handleAddNewProtocol = () => {
@@ -71,11 +97,12 @@ export default function TermsManager() {
     setProtocols(protocols.map(p => p.id === id ? { ...p, [field]: value } : p));
   };
 
-  // 🎨 FIXED ADAPTIVE THEME DESIGN SYSTEM CLASSES
   const cardBgClass = "bg-white dark:bg-[#0a101d] border border-slate-200/60 dark:border-slate-800/80 p-6 rounded-2xl mb-6 shadow-xs";
   const inputClass = "w-full bg-slate-50 dark:bg-[#111927] border border-slate-200 dark:border-gray-800 text-slate-900 dark:text-white rounded-xl p-3 text-sm font-medium outline-none focus:border-blue-500 transition-colors";
   const labelClass = "block text-xs font-bold tracking-wider uppercase text-slate-400 dark:text-slate-500 mb-2 text-left";
 
+
+  
   return (
     <div className="space-y-6 w-full">
       

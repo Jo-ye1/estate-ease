@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Phone, Mail, MapPin, MessageSquare, Trash2, ArrowUpRight } from 'lucide-react';
+import axios from 'axios'; // 🟢 Added to establish your real-time content delivery sync
 
 export default function ContactManager() {
   // --- 1. State Hooks initialized natively with LocalStorage data or defaults ---
-  const [phone, setPhone] = useState(() => localStorage.getItem('contact_phone') || "+1 (555) 234-5678");
-  const [hours, setHours] = useState(() => localStorage.getItem('contact_hours') || "Mon-Fri - 9:00 AM - 6:00 PM");
-  const [email, setEmail] = useState(() => localStorage.getItem('contact_email') || "operations@estateease.com");
-  const [emailSub, setEmailSub] = useState(() => localStorage.getItem('contact_email_sub') || "24 hour typical queue turnaround");
-  const [address, setAddress] = useState(() => localStorage.getItem('contact_address') || "742 Evergreen Terrace");
-  const [suite, setSuite] = useState(() => localStorage.getItem('contact_suite') || "Suite 400 - New York, NY");
+  const [phone, setPhone] = useState("+1 (555) 234-5678");
+  const [hours, setHours] = useState("Mon-Fri - 9:00 AM - 6:00 PM");
+  const [email, setEmail] = useState("operations@estateease.com");
+  const [emailSub, setEmailSub] = useState("24 hour typical queue turnaround");
+  const [address, setAddress] = useState("742 Evergreen Terrace");
+  const [suite, setSuite] = useState("Suite 400 - New York, NY");
 
   // --- 2. Live Inbox Listener Pipeline for Received User Messages ---
   const [receivedMessages, setReceivedMessages] = useState(() => {
@@ -19,16 +20,54 @@ export default function ContactManager() {
     ];
   });
 
-  // --- 3. Pure LocalStorage Save Operations ---
-  const handleUpdateContactDetails = (e) => {
+  // --- 3. 🟢 Live Server Content Synchronization Hook (Fetch values on load) ---
+  useEffect(() => {
+    const loadContactDataFromDatabase = async () => {
+      try {
+        const response = await axios.get("http://localhost:5000/api/admin-settings/contact");
+        const matrix = response.data;
+        if (matrix) {
+          setPhone(matrix.phone || "+1 (555) 234-5678");
+          setHours(matrix.hours || "Mon-Fri - 9:00 AM - 6:00 PM");
+          setEmail(matrix.email || "operations@estateease.com");
+          setEmailSub(matrix.emailSub || "24 hour typical queue turnaround");
+          setAddress(matrix.address || "742 Evergreen Terrace");
+          setSuite(matrix.suite || "Suite 400 - New York, NY");
+        }
+      } catch (err) {
+        console.error("Failed to load settings from server, falling back to local memory:", err);
+      }
+    };
+    loadContactDataFromDatabase();
+  }, []);
+
+  // --- FIXED SAVE OPERATOR: Transmit values directly using your exact schema keys ---
+  const handleUpdateContactDetails = async (e) => {
     e.preventDefault();
-    localStorage.setItem('contact_phone', phone);
-    localStorage.setItem('contact_hours', hours);
-    localStorage.setItem('contact_email', email);
-    localStorage.setItem('contact_email_sub', emailSub);
-    localStorage.setItem('contact_address', address);
-    localStorage.setItem('contact_suite', suite);
-    alert("Public Core Contact Matrix Fully Updated inside browser memory!");
+    try {
+      const payload = {
+        phone: phone,      // 🟢 FIXED: Changed from hotline to phone
+        hours: hours,
+        email: email,
+        emailSub: emailSub,
+        address: address,
+        suite: suite
+      };
+
+      await axios.post("http://localhost:5000/api/admin-settings/contact/details", payload);
+      
+      localStorage.setItem('contact_phone', phone);
+      localStorage.setItem('contact_hours', hours);
+      localStorage.setItem('contact_email', email);
+      localStorage.setItem('contact_email_sub', emailSub);
+      localStorage.setItem('contact_address', address);
+      localStorage.setItem('contact_suite', suite);
+
+      alert("Public Core Contact Matrix Fully Updated inside MongoDB Database!");
+    } catch (err) {
+      console.error("Failed to update matrix data:", err);
+      alert("Error saving contact details to server: " + err.message);
+    }
   };
 
   const handlePurgeMessage = (id) => {
@@ -38,11 +77,12 @@ export default function ContactManager() {
     localStorage.setItem('contact_received_messages', JSON.stringify(updatedMessages));
   };
 
-  // 🎨 FIXED ADAPTIVE THEME DESIGN SYSTEM CLASSES: Matches any page theme seamlessly
   const formCardClass = "bg-white dark:bg-[#0a101d] border border-slate-200/60 dark:border-slate-800/80 p-6 rounded-2xl shadow-xs";
   const fieldGroupClass = "p-4 rounded-xl border border-dashed border-slate-200 dark:border-gray-800 bg-slate-50/40 dark:bg-slate-950/10 text-left";
   const inputClass = "w-full bg-slate-50 dark:bg-[#111927] border border-slate-200 dark:border-gray-800 text-slate-900 dark:text-white rounded-xl p-3 text-sm font-medium outline-none focus:border-blue-500 transition-colors";
   const labelClass = "block text-xs font-bold tracking-wider uppercase text-slate-400 dark:text-slate-500 mb-2 text-left";
+
+  
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 w-full">

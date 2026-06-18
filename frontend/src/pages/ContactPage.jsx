@@ -2,25 +2,24 @@ import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Mail, Phone, MapPin, Send, CheckCircle, Clock } from "lucide-react";
 import Navbar from "@/components/home/Navbar";
+import axios from "axios"; // 🟢 Added to establish your real-time content delivery sync
 
 export default function ContactPage() {
   const [searchParams] = useSearchParams();
   const purposeParam = searchParams.get("purpose") || "general";
 
-  // --- 1. Pull live LocalStorage strings directly into reactive states with fallback defaults ---
-  const [phone, setPhone] = useState(() => localStorage.getItem('contact_phone') || "+1 (555) 234-5678");
-  const [hours, setHours] = useState(() => localStorage.getItem('contact_hours') || "Mon-Fri • 9:00 AM - 6:00 PM");
-  const [email, setEmail] = useState(() => localStorage.getItem('contact_email') || "operations@estateease.com");
-  const [emailSub, setEmailSub] = useState(() => localStorage.getItem('contact_email_sub') || "24 hour typical queue turnaround");
-  const [address, setAddress] = useState(() => localStorage.getItem('contact_address') || "742 Evergreen Terrace");
-  const [suite, setSuite] = useState(() => localStorage.getItem('contact_suite') || "Suite 400 • New York, NY");
+  // --- 1. Reactive State Trackers initialized with static base template defaults ---
+  const [phone, setPhone] = useState("+1 (555) 234-5678");
+  const [hours, setHours] = useState("Mon-Fri • 9:00 AM - 6:00 PM");
+  const [email, setEmail] = useState("operations@estateease.com");
+  const [emailSub, setEmailSub] = useState("24 hour typical queue turnaround");
+  const [address, setAddress] = useState("742 Evergreen Terrace");
+  const [suite, setSuite] = useState("Suite 400 • New York, NY");
 
-  // Form submission and validation state handlers
   const [formData, setFormData] = useState({ email: "", subject: "", message: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSent, setIsSent] = useState(false);
 
-  // 🎯 DYNAMIC RENDERING SCHEMAS: Swaps contextual page states based on footer parameters
   const pageConfigs = {
     general: {
       badge: "Get In Touch",
@@ -54,24 +53,31 @@ export default function ContactPage() {
 
   const currentConfig = pageConfigs[purposeParam] || pageConfigs.general;
 
-  // --- 2. Live Memory Synchronizer Hook ---
+  // --- Live Server Data Content Synchronization Engine ---
   useEffect(() => {
-    const syncContactPageMemory = () => {
-      setPhone(localStorage.getItem('contact_phone') || "+1 (555) 234-5678");
-      setHours(localStorage.getItem('contact_hours') || "Mon-Fri • 9:00 AM - 6:00 PM");
-      setEmail(localStorage.getItem('contact_email') || "operations@estateease.com");
-      setEmailSub(localStorage.getItem('contact_email_sub') || "24 hour typical queue turnaround");
-      setAddress(localStorage.getItem('contact_address') || "742 Evergreen Terrace");
-      setSuite(localStorage.getItem('contact_suite') || "Suite 400 • New York, NY");
+    const syncWithBackendMatrix = async () => {
+      try {
+        const response = await axios.get("http://localhost:5000/api/admin-settings/contact");
+        const matrix = response.data;
+        
+        if (matrix) {
+          setPhone(matrix.phone || matrix.hotline || "+1 (555) 234-5678"); // 🟢 FIXED
+          setHours(matrix.hours || "Mon-Fri • 9:00 AM - 6:00 PM");
+          setEmail(matrix.email || "operations@estateease.com");
+          setEmailSub(matrix.emailSub || "24 hour typical queue turnaround");
+          setAddress(matrix.address || "742 Evergreen Terrace");
+          setSuite(matrix.suite || "Suite 400 • New York, NY");
+        }
+      } catch (err) {
+        console.error("Content hydration failed, falling back to local memory tracks:", err);
+      }
     };
 
-    window.addEventListener('storage', syncContactPageMemory);
-    syncContactPageMemory(); // Execution cycle checkpoint lookups on load mount
-
-    return () => window.removeEventListener('storage', syncContactPageMemory);
+    syncWithBackendMatrix();
   }, []);
 
-  // Sync subject field automatically when URL purpose query parameters switch
+
+
   useEffect(() => {
     setFormData((prev) => ({
       ...prev,
@@ -84,20 +90,15 @@ export default function ContactPage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // --- 3. 👑 REAL TRANSMIT MESSAGE LOOP LOCALSTORAGE INTEGRATION ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       setIsSubmitting(true);
-      
-      // Artificial delay network timer metrics emulation
       await new Promise((resolve) => setTimeout(resolve, 1200));
 
-      // Pull current live system array messages logs from memory or initialize blank grid
       const savedMsg = localStorage.getItem('contact_received_messages');
       const existingMessages = savedMsg ? JSON.parse(savedMsg) : [];
 
-      // Structure our freshly captured inbound client inquiry payload document card
       const newTransmission = {
         id: Date.now(),
         sender: formData.email,
@@ -105,7 +106,6 @@ export default function ContactPage() {
         message: `[${formData.subject}] - ${formData.message}`
       };
 
-      // Append and save back into the shared browser storage array layer
       localStorage.setItem('contact_received_messages', JSON.stringify([newTransmission, ...existingMessages]));
 
       setIsSent(true);
@@ -144,9 +144,8 @@ export default function ContactPage() {
 
       <section className="max-w-[1320px] mx-auto w-full px-4 pt-24 pb-16 flex-1 flex flex-col justify-start">
         
-        {/* DYNAMIC HEADER CONTROLS TEXT BLOCK */}
         <div className="mb-14 relative inline-block w-full">
-          <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-500 bg-blue-500/10 px-3 py-1 rounded-full mb-3 block w-max animate-in fade-in zoom-in-95 duration-200">
+          <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-500 bg-blue-500/10 px-3 py-1 rounded-full mb-3 block w-max">
             {currentConfig.badge}
           </span>
           <h1 className="text-3xl lg:text-4xl font-black text-slate-800 dark:text-white tracking-tight pb-3">
@@ -155,21 +154,13 @@ export default function ContactPage() {
           <div className="w-24 h-[2px] bg-blue-600 dark:bg-blue-500 rounded-full mt-2" />
         </div>
 
-        {/* TWO-COLUMN LAYOUT MATRIX GRID */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start w-full">
           
-          {/* Left Column Side: Direct Connections Content Info Panel */}
           <div className="lg:col-span-5 space-y-6 w-full">
-            <div className="max-w-[420px]">
-              <h2 className="text-xl font-bold text-slate-800 dark:text-white tracking-tight mb-3">
-                Reach out to our global asset specialists
-              </h2>
-              <p className="text-slate-500 dark:text-slate-400 text-xs font-medium leading-relaxed">
-                {currentConfig.desc}
-              </p>
-            </div>
+            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium leading-relaxed max-w-md">
+              {currentConfig.desc}
+            </p>
 
-            {/* Rendered Direct Method Info Cards */}
             <div className="space-y-4 pt-4">
               {contactMethods.map((method, index) => (
                 <div 
@@ -195,7 +186,7 @@ export default function ContactPage() {
               ))}
             </div>
           </div>
-          {/* Right Column Side: Corporate Form Dispatch Portal */}
+
           <div className="lg:col-span-7 w-full">
             <div className="w-full bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-2xl p-6 lg:p-8 shadow-xs relative overflow-hidden">
               

@@ -14,21 +14,27 @@ const storage = multer.diskStorage({
   },
 });
 
+
+
 const fileFilter = (req, file, cb) => {
-  const allowed = /jpg|jpeg|png|webp/;
+  console.log("Original Name:", file.originalname);
+  console.log("Mime Type:", file.mimetype);
 
-  const ext = allowed.test(
-    path.extname(file.originalname).toLowerCase()
-  );
+  // 🟢 UPGRADED: Added avif format to match your modern browser uploads
+  const allowedExts = /jpg|jpeg|png|webp|jfif|heic|heif|avif/i;
+  
+  const ext = allowedExts.test(path.extname(file.originalname).toLowerCase());
+  
+  const mime = file.mimetype.startsWith("image/") || file.mimetype === "application/octet-stream";
 
-  const mime = allowed.test(file.mimetype);
-
-  if (ext && mime) {
+  if (ext || mime) {
     cb(null, true);
   } else {
     cb(new Error("Images only"));
   }
 };
+
+
 
 const upload = multer({
   storage,

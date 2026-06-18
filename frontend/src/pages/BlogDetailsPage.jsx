@@ -2,39 +2,40 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, useParams, useNavigate, Link } from 'react-router-dom';
 import { Calendar, Clock, ChevronLeft } from 'lucide-react';
 import Navbar from "@/components/home/Navbar";
+import api from "@/lib/api";
 
 export default function BlogDetailsPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { id } = useParams(); // 👑 Extracts the active route post id parameter straight from the URL string
+  const { id } = useParams();
   
   const [article, setArticle] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Try to read the article from passed router state envelope context first
     if (location.state?.article) {
       setArticle(location.state.article);
       setLoading(false);
       return;
     }
 
-    // 2. 👑 THE COMPANION MULTI-SOURCE SYNC: If no state exists, query your database storage pool directly using the URL ID token!
-    try {
-      const savedPostsStr = localStorage.getItem('blog_posts');
-      if (savedPostsStr) {
-        const allPosts = JSON.parse(savedPostsStr);
-        // Find matching entry whether the stored key id is a string code token or pure integer count parameter
-        const matchedPost = allPosts.find(p => String(p.id) === String(id));
-        if (matchedPost) {
-          setArticle(matchedPost);
+    const loadArticleFromApi = async () => {
+      try {
+        const { data } = await api.get("/blog");
+        if (data && data.posts) {
+          const found = data.posts.find(
+            p => String(p.id) === String(id) || String(p._id) === String(id)
+          );
+          setArticle(found);
         }
+      } catch (err) {
+        console.error("Failed to fetch article from server pool:", err);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error("Failed to parse local blog storage pools during direct route linking:", err);
-    } finally {
-      setLoading(false);
-    }
+    };
+
+    loadArticleFromApi();
   }, [id, location.state]);
 
   if (loading) {
@@ -74,24 +75,23 @@ export default function BlogDetailsPage() {
           </Link>
 
           <div className="space-y-3 text-left">
-            <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 bg-blue-500/10 px-3 py-1 rounded-full uppercase tracking-widest">{article.category}</span>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 dark:text-white tracking-tight leading-tight pt-1">{article.title}</h1>
+            <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 bg-blue-500/10 px-3 py-1 rounded-full uppercase tracking-widest">{article.category || article.tag}</span>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 dark:text-white tracking-tight leading-tight pt-1">{article.title || article.headline}</h1>
             
             <div className="flex items-center gap-4 text-xs font-semibold text-slate-400 pt-2 border-b border-slate-200/40 dark:border-slate-800/40 pb-4">
-              <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4" /> {article.date}</span>
-              <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" /> {article.readTime}</span>
+              <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4" /> {article.date || article.publishDate}</span>
+              <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" /> {article.readTime || article.readingTime}</span>
             </div>
           </div>
 
           {article.image && (
             <div className="w-full h-[320px] sm:h-[420px] bg-slate-100 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 overflow-hidden rounded-2xl shadow-xs">
-              <img src={article.image} alt={article.title} className="w-full h-full object-cover object-center" />
+              <img src={article.image} alt={article.title || "Article Image"} className="w-full h-full object-cover object-center" />
             </div>
           )}
 
-          {/* RENDERS TEXT CONTENT PARAMETERS */}
           <article className="text-xs sm:text-sm leading-relaxed text-slate-600 dark:text-slate-300 font-medium space-y-4 pt-4 whitespace-pre-line text-justify max-w-full overflow-hidden">
-            {article.content || article.excerpt}
+            {article.fullDetailedArticleBodyCopyContent || article.body || article.content || article.excerpt}
           </article>
 
         </main>

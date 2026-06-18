@@ -5,7 +5,7 @@ import { getProperties } from "../../services/propertyService";  // Dynamic asse
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
-  // 👑 LIVE DATA SYNCHRONIZATION HOOK: Pulls from admin configurations instantly
+  
   // 👑 LIVE DATA SYNCHRONIZATION HOOK: Pulls from admin configurations instantly
   const [contactData, setContactData] = useState({
     email: "operations@estateease.com",
@@ -21,6 +21,7 @@ export default function Footer() {
     twitterUrl: "https://twitter.com",
     instagramUrl: "https://instagram.com",
   });
+
   useEffect(() => {
     const fetchLiveFooterMetrics = async () => {
       try {
@@ -40,27 +41,25 @@ export default function Footer() {
         console.error("Footer properties fallback match error:", error);
       }
 
-// 🛠️ Locate the second try-catch routine inside the Footer's useEffect and update it to:
-try {
-const response = await fetch("http://localhost:5000/api/settings/footer");
- if (response.ok) {
-    const data = await response.json();
-    setDynamicSocials({
-      footerText: data.footerText || "Nemo enim ipsam voluptatem...",
-      facebookUrl: data.facebookUrl || "https://facebook.com",
-      linkedinUrl: data.linkedinUrl || "https://linkedin.com",
-      twitterUrl: data.twitterUrl || "https://twitter.com",
-      instagramUrl: data.instagramUrl || "https://instagram.com"
-    });
-  }
-} catch (error) {
-  console.error("Failed fetching live database configurations:", error);
-}
-
+      // 🛠️ Locate the second try-catch routine inside the Footer's useEffect and update it to:
+      try {
+        const response = await fetch("http://localhost:5000/api/settings/footer");
+        if (response.ok) {
+          const data = await response.json();
+          setDynamicSocials({
+            footerText: data.footerText || "Nemo enim ipsam voluptatem...",
+            facebookUrl: data.facebookUrl || "https://facebook.com",
+            linkedinUrl: data.linkedinUrl || "https://linkedin.com",
+            twitterUrl: data.twitterUrl || "https://twitter.com",
+            instagramUrl: data.instagramUrl || "https://instagram.com"
+          });
+        }
+      } catch (error) {
+        console.error("Failed fetching live database configurations:", error);
+      }
     };
     fetchLiveFooterMetrics();
   }, []);
-
 
   // 🎯 FIXED LOGOS: Replaced text shortcuts with raw, ultra-clean vector SVG graphics linked to Admin Manager
   const socialLinks = [
@@ -99,7 +98,7 @@ const response = await fetch("http://localhost:5000/api/settings/footer");
   ];
 
   const aboutLinks = [
-    { label: "How It Works", path: "/about" },
+    { label: "How It Works", path: "/how-it-works" },
     { label: "Customers", path: "/review" },
     { label: "Our Story", path: "/about" },
     { label: "Career", path: "/contact?purpose=career" }, 
@@ -111,53 +110,51 @@ const response = await fetch("http://localhost:5000/api/settings/footer");
     { label: "Questions", path: "/contact?purpose=questions" }, 
     { label: "Helping Center", path: "/contact?purpose=help" }, 
     { label: "Privacy Policy", path: "/terms-policy" }, 
-    { label: "Buy or Rent", path: "/search" }, // Wired cleanly directly into search query pipeline
+    { label: "Buy or Rent", path: "/search" }, 
     { label: "Properties", path: "/search" },
     { label: "Blogs", path: "/blog" }
   ];
 
   return (
     <footer className="w-full bg-white dark:bg-slate-950 border-t border-slate-100 dark:border-slate-900 select-none text-left transition-colors duration-200">
-      <div className="max-w-[1320px] mx-auto px-4 pt-16 pb-8">
+      <div className="max-w-[1320px] mx-auto px-4 pt-12 pb-6">
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10 lg:gap-8 pb-16 w-full">
+                {/* UPPER FOOTER GRID STRUCTURE - ALIGNED & BALANCED */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-12 gap-8 pb-10 w-full items-start">
           
-        {/* COLUMN 1: CORPORATE LOGO & BRAND IDENTITY */}
-<div className="lg:col-span-4 flex flex-col justify-start text-left max-w-[320px]">
-  <Link to="/" className="text-base font-black flex items-center gap-1.5 select-none border-0 leading-none">
-    <span className="text-xl select-none leading-none mt-[-2px]">🏠</span>
-    <span className="uppercase tracking-wider font-extrabold text-blue-600 dark:text-blue-500">EstateEase</span>
-  </Link>
-  
-  {/* 👑 FIXED RIGHT HERE: Calls the dynamic state variable with a safe fallback text */}
-  <p className="text-slate-400 dark:text-slate-500 text-xs font-medium leading-relaxed mt-5">
-    {dynamicSocials?.footerText || "Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit sed quia consequuntur magni dolores eos qui ratione."}
-  </p>
-  
-  <div className="mt-6 flex flex-col gap-2.5">
-    <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-800 dark:text-slate-200">Follow Us</h4>
-    <div className="flex items-center gap-2">
-      {socialLinks.map((soc, idx) => (
-        <a 
-          key={idx}
-          href={soc.url || "#"}
-          target="_blank"
-          rel="noreferrer"
-          className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-blue-50 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-800 text-slate-400 hover:text-blue-600 dark:text-slate-500 dark:hover:text-blue-400 flex items-center justify-center transition-colors cursor-pointer"
-        >
-          {soc.icon}
-        </a>
-      ))}
-    </div>
-  </div>
-</div>
+          {/* COLUMN 1: BRAND IDENTITY */}
+          <div className="lg:col-span-4 flex flex-col justify-start text-left max-w-[320px]">
+            <Link to="/" className="text-base font-black flex items-center gap-1.5 select-none border-0 leading-none">
+              <span className="text-xl select-none leading-none mt-[-2px]">🏠</span>
+              <span className="uppercase tracking-wider font-extrabold text-blue-600 dark:text-blue-500">EstateEase</span>
+            </Link>
+            <p className="text-slate-400 dark:text-slate-500 text-xs font-medium leading-relaxed mt-4">
+              {dynamicSocials?.footerText || "Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit sed quia consequuntur magni dolores eos qui ratione."}
+            </p>
+            <div className="mt-5 flex flex-col gap-2">
+              <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-800 dark:text-slate-200">Follow Us</h4>
+              <div className="flex items-center gap-2">
+                {socialLinks.map((soc, idx) => (
+                  <a 
+                    key={idx}
+                    href={soc.url || "#"}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-blue-50 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-800 text-slate-400 hover:text-blue-600 dark:text-slate-500 dark:hover:text-blue-400 flex items-center justify-center transition-colors cursor-pointer"
+                  >
+                    {soc.icon}
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
 
-          {/* COLUMN 2: ABOUT LINK DIRECTORY HUB */}
+          {/* COLUMN 2: ABOUT DIRECTORY */}
           <div className="lg:col-span-2 flex flex-col justify-start text-left">
-            <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-white mb-5 leading-none">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-white mb-4 leading-none">
               About Us
             </h3>
-            <ul className="space-y-3 list-none pl-0 mt-0 text-xs font-semibold">
+            <ul className="space-y-2.5 list-none pl-0 mt-0 text-xs font-semibold">
               {aboutLinks.map((link, idx) => (
                 <li key={idx}>
                   <Link 
@@ -175,12 +172,12 @@ const response = await fetch("http://localhost:5000/api/settings/footer");
             </ul>
           </div>
 
-          {/* COLUMN 3: SUPPORT LINK DIRECTORY HUB */}
+          {/* COLUMN 3: SUPPORT DIRECTORY */}
           <div className="lg:col-span-2 flex flex-col justify-start text-left">
-            <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-white mb-5 leading-none">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-white mb-4 leading-none">
               Support & Summary
             </h3>
-            <ul className="space-y-3 list-none pl-0 mt-0 text-xs font-semibold text-slate-400 dark:text-slate-500">
+            <ul className="space-y-2.5 list-none pl-0 mt-0 text-xs font-semibold text-slate-400 dark:text-slate-500">
               {supportLinks.map((link, idx) => (
                 <li key={idx}>
                   <Link to={link.path} className="hover:text-slate-700 dark:hover:text-slate-200 transition-colors block w-max">
@@ -191,14 +188,14 @@ const response = await fetch("http://localhost:5000/api/settings/footer");
             </ul>
           </div>
 
-                 {/* COLUMN 4: DIRECT CONTACT INFORMATION METADATA CHIPS */}
-          <div className="lg:col-span-4 flex flex-col justify-start text-left space-y-4 w-full">
-            <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-white mb-1 leading-none">
+          {/* COLUMN 4: CONTACT METADATA */}
+          <div className="lg:col-span-4 flex flex-col justify-start text-left space-y-3.5 w-full">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-white mb-4 leading-none">
               Contact Us
             </h3>
             
-            {/* E-mail Container Block */}
-            <div className="flex items-start gap-4 w-full max-w-[340px]">
+            {/* E-mail Block */}
+            <div className="flex items-start gap-3 w-full max-w-[340px]">
               <div className="w-8 h-8 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex items-center justify-center rounded-lg text-blue-600 dark:text-blue-400 shrink-0 shadow-xs">
                 <Mail className="w-3.5 h-3.5" />
               </div>
@@ -210,8 +207,8 @@ const response = await fetch("http://localhost:5000/api/settings/footer");
               </div>
             </div>
 
-            {/* Contact Phone Container Block */}
-            <div className="flex items-start gap-4 w-full max-w-[340px]">
+            {/* Phone Block */}
+            <div className="flex items-start gap-3 w-full max-w-[340px]">
               <div className="w-8 h-8 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex items-center justify-center rounded-lg text-blue-600 dark:text-blue-400 shrink-0 shadow-xs">
                 <Phone className="w-3.5 h-3.5" />
               </div>
@@ -223,8 +220,8 @@ const response = await fetch("http://localhost:5000/api/settings/footer");
               </div>
             </div>
 
-            {/* Location Address Container Block */}
-            <div className="flex items-start gap-4 w-full max-w-[340px]">
+            {/* Location Block */}
+            <div className="flex items-start gap-3 w-full max-w-[340px]">
               <div className="w-8 h-8 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex items-center justify-center rounded-lg text-blue-600 dark:text-blue-400 shrink-0 shadow-xs">
                 <MapPin className="w-3.5 h-3.5" />
               </div>
@@ -236,18 +233,25 @@ const response = await fetch("http://localhost:5000/api/settings/footer");
               </div>
             </div>
           </div>
+          
+        </div>
 
-        {/* LOWER FOOTER END SIGNATURE TRACK */}
-        <div className="border-t border-slate-100 dark:border-slate-900 pt-8 mt-4 flex flex-col sm:flex-row items-center justify-between gap-4 w-full text-xs font-bold text-slate-400 dark:text-slate-500">
-          <div className="flex items-center gap-1 leading-none">
+
+        {/* LOWER COPYRIGHT BAR (MAXIMIZED LEFT & RIGHT ALIGNMENT) */}
+        <div className="w-full flex flex-col sm:flex-row items-center justify-between text-xs font-semibold text-slate-400 dark:text-slate-500 border-t border-slate-200 dark:border-slate-800/60 pt-4 mt-4 gap-4">
+          <div className="flex items-center gap-1.5 whitespace-nowrap">
             <span>Copyright &copy; {currentYear} Estate Ease. Crafted with</span>
-            <Heart className="w-3 h-3 text-red-500 fill-red-500 shrink-0 animate-pulse" />
+            <Heart className="w-3.5 h-3.5 text-red-500 fill-red-500 shrink-0 inline animate-pulse" />
           </div>
-          <div className="flex items-center gap-5 leading-none">
-            <Link to="/terms-policy" className="hover:text-slate-600 dark:hover:text-slate-300 transition-colors">Term Condition & Policy</Link>
+          <div className="flex items-center gap-6 whitespace-nowrap">
+            <Link to="/terms-policy" className="hover:text-slate-600 dark:hover:text-slate-300 transition-colors no-underline">
+              Term Condition & Policy
+            </Link>
           </div>
         </div>
-        </div>
+
+
+
       </div>
     </footer>
   );

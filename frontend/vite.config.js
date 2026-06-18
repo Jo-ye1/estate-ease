@@ -13,8 +13,17 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  // 👑 THE PROXY FIX: Safely binds frontend requests to your backend database port
   server: {
+    port: 5173,
+    hmr: {
+      protocol: "ws",
+      host: "localhost",
+      port: 5173,
+    },
+    headers: {
+      "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
+      "Cross-Origin-Embedder-Policy": "unsafe-none",
+    },
     proxy: {
       "/api": {
         target: "http://localhost:5000",

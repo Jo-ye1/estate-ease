@@ -1,42 +1,34 @@
 import React, { useState } from 'react';
-import { Home, Share2 } from "lucide-react"; // 👈 Added Share2 for your Socials tab icon
+import { Home, Share2, Info, BookOpen, Mail, FileText, HelpCircle, HelpCircle as WorkflowIcon } from "lucide-react"; 
+
 import HomeManager from "./HomeManager";
-
-import { 
-  Info, 
-  BookOpen, 
-  Mail, 
-  FileText, 
-  HelpCircle 
-} from 'lucide-react';
-
-// 👑 FIXED: Kept exactly one clean, relative import pointer mapping for your modules
 import AboutManager from './AboutManager';
 import BlogManager from './BlogManager';
 import ContactManager from './ContactManager';
 import TermsManager from './TermsManager';
 import FaqManager from './FaqManager';
-import SocialsManager from './SocialsManager'; // 👈 👑 Imported your new Socials backend synchronizer node here
+import SocialsManager from './SocialsManager'; 
+import WorkflowManager from './WorkflowManager'; // 🟢 1. IMPORTED YOUR NEW WORKFLOW MANAGER NODE
 
 export default function AdminSettingsDashboard() {
   const [activeTab, setActiveTab] = useState('about');
 
-  // --- Configuration Navigation Map Schema ---
+  // --- Configuration Navigation Map Schema Matrix ---
   const navigationItems = [
     { id: 'home_cms', label: 'HOME PAGE CMS', icon: Home },
     { id: 'about', label: 'About Page', icon: Info },
+    
+    // 🟢 2. MOUNTED DYNAMIC MODULE TAB ENTRY POINT FOR THE WORKFLOW SECTION RIGHT HERE
+    { id: 'workflow', label: 'How It Works (Engine)', icon: WorkflowIcon },
+    
     { id: 'blog', label: 'Blog Journal', icon: BookOpen },
     { id: 'contact', label: 'Contact Settings', icon: Mail },
-    
-    // 👑 MOUNTED DYNAMIC MODULE TAB ENTRY POINT RIGHT HERE
     { id: 'socials', label: 'Socials & Footer', icon: Share2 },
-    
     { id: 'terms', label: 'Terms & Privacy', icon: FileText },
     { id: 'faq', label: 'FAQ Accordions', icon: HelpCircle },
   ];
 
   return (
-    // 🎨 FIXED THEME: Removed hardcoded dark modes to allow container cards to inherit light/dark theme variants seamlessly
     <div className="w-full text-slate-900 dark:text-gray-100 transition-colors duration-200">
       <div className="flex flex-col lg:flex-row gap-6 items-start">
         
@@ -68,15 +60,17 @@ export default function AdminSettingsDashboard() {
           </nav>
         </aside>
 
-<main className="flex-1 w-full min-w-0">
-  {activeTab === 'home_cms' && <HomeManager />}
-  {activeTab === 'about' && <AboutManager />}
-  {activeTab === 'blog' && <BlogManager />}
-  {activeTab === 'contact' && <ContactManager />}
-  {activeTab === 'socials' && <SocialsManager />} 
-  {activeTab === 'terms' && <TermsManager />}
-  {activeTab === 'faq' && <FaqManager />}
-</main>
+        {/* 🟢 3. CONDITIONAL MAIN DISPLAY RENDERING MANAGER PIPELINE */}
+        <main className="flex-1 w-full min-w-0">
+          {activeTab === 'home_cms' && <HomeManager />}
+          {activeTab === 'about' && <AboutManager />}
+          {activeTab === 'workflow' && <WorkflowManager />} 
+          {activeTab === 'blog' && <BlogManager />}
+          {activeTab === 'contact' && <ContactManager />}
+          {activeTab === 'socials' && <SocialsManager />} 
+          {activeTab === 'terms' && <TermsManager />}
+          {activeTab === 'faq' && <FaqManager />}
+        </main>
         
       </div>
     </div>

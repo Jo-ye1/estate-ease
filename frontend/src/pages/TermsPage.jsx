@@ -1,56 +1,43 @@
 import React, { useState, useEffect } from "react";
 import { ShieldCheck, CheckCircle, Scale } from "lucide-react";
 import Navbar from "@/components/home/Navbar";
+import axios from "axios"; // 🟢 Added to establish your direct server content link
 
 export default function TermsPage() {
-  // --- 1. Dynamic State Headers Hooks connected natively to Browser Memory ---
-  const [sectionHeading, setSectionHeading] = useState(() => localStorage.getItem('terms_heading') || "Terms of Service & Privacy Policy");
-  const [sectionSub, setSectionSub] = useState(() => localStorage.getItem('terms_subheading') || "Review our verified corporate rules, asset tracking legal codes, and safety procedures");
+  const [sectionHeading, setSectionHeading] = useState("Terms of Service & Privacy Policy");
+  const [sectionSub, setSectionSub] = useState("Review our verified corporate rules, asset tracking legal codes, and safety procedures");
   
-  const [legalIntegrityTitle, setLegalIntegrityTitle] = useState(() => localStorage.getItem('terms_integrity_title') || "Legal Integrity");
-  const [integrityPoint1, setIntegrityPoint1] = useState(() => localStorage.getItem('terms_integrity_p1') || "Your database profiles data arrays utilize localized environment layer encryptions natively.");
-  const [integrityPoint2, setIntegrityPoint2] = useState(() => localStorage.getItem('terms_integrity_p2') || "Terms apply automatically to all system operators upon creating an app routing session token.");
+  const [legalIntegrityTitle, setLegalIntegrityTitle] = useState("Legal Integrity");
+  const [integrityPoint1, setIntegrityPoint1] = useState("Your database profiles data arrays utilize localized environment layer encryptions natively.");
+  const [integrityPoint2, setIntegrityPoint2] = useState("Terms apply automatically to all system operators upon creating an app routing session token.");
 
-  // --- 2. Dynamic Compliance Chapters Array State ---
-  const [complianceSections, setComplianceSections] = useState(() => {
-    const saved = localStorage.getItem('terms_protocols');
-    return saved ? JSON.parse(saved) : [
-      {
-        numLabel: "01",
-        title: "Data Indexation & Verification Protocol",
-        content: "When listing properties on EstateEase, operators grant our servers a global license to map, store, and distribute metadata documents. We enforce severe penalties, including total account purges from MongoDB collection structures, if pricing variables contain false data strings."
-      },
-      {
-        numLabel: "02",
-        title: "User Authenticity & Profile Security",
-        content: "You are solely responsible for protecting your session token parameters. Password updates modified inside your Account Profile suite hash natively inside database tiers. Master Admins reserve the right to audit and manage permissions to prevent system exploitation bugs."
-      },
-      {
-        numLabel: "03",
-        title: "Closing Settlements & Fees",
-        content: "Marketplace values represent gross asset dimensions. Transaction clearing parameters executed via verified broker panels are governed under local regulatory real estate escrow codes. Processing settlement closures triggers platform event history log generation automatically."
-      }
-    ];
-  });
+  const [complianceSections, setComplianceSections] = useState([]);
 
-  // --- 3. Live Storage Listener: Sync instantly across open browser tabs ---
+  // --- 🟢 LIVE SERVER DATABASE CONTENT DELIVERY ENGINE ---
   useEffect(() => {
-    const syncTermsPageMemory = () => {
-      setSectionHeading(localStorage.getItem('terms_heading') || "Terms of Service & Privacy Policy");
-      setSectionSub(localStorage.getItem('terms_subheading') || "Review our verified corporate rules, asset tracking legal codes, and safety procedures");
-      setLegalIntegrityTitle(localStorage.getItem('terms_integrity_title') || "Legal Integrity");
-      setIntegrityPoint1(localStorage.getItem('terms_integrity_p1') || "Your database profiles data arrays utilize localized environment layer encryptions natively.");
-      setIntegrityPoint2(localStorage.getItem('terms_integrity_p2') || "Terms apply automatically to all system operators upon creating an app routing session token.");
-      
-      const savedProtocols = localStorage.getItem('terms_protocols');
-      if (savedProtocols) setComplianceSections(JSON.parse(savedProtocols));
+    const fetchLiveTermsDataMatrix = async () => {
+      try {
+        const response = await axios.get("http://localhost:5000/api/admin-settings/terms");
+        const doc = response.data;
+        
+        if (doc) {
+          if (doc.heading) setSectionHeading(doc.heading);
+          if (doc.subheading) setSectionSub(doc.subheading);
+          if (doc.integrityTitle) setLegalIntegrityTitle(doc.integrityTitle);
+          if (doc.integrityP1) setIntegrityPoint1(doc.integrityP1);
+          if (doc.integrityP2) setIntegrityPoint2(doc.integrityP2);
+          if (doc.protocols) setComplianceSections(doc.protocols);
+        }
+      } catch (err) {
+        console.error("Terms content hydration failed, falling back to cached local storage:", err);
+        const saved = localStorage.getItem('terms_protocols');
+        if (saved) setComplianceSections(JSON.parse(saved));
+      }
     };
 
-    window.addEventListener('storage', syncTermsPageMemory);
-    syncTermsPageMemory(); // Execution cycle checkpoint update lookup on initial load mount
-
-    return () => window.removeEventListener('storage', syncTermsPageMemory);
+    fetchLiveTermsDataMatrix();
   }, []);
+
 
   return (
     <div className="w-full bg-slate-50 dark:bg-slate-950 min-h-screen select-none text-left transition-colors duration-200 pb-24 flex flex-col">

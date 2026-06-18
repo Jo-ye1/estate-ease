@@ -35,10 +35,12 @@ const AddPropertyPage = () => {
     }));
   };
 
-  const handleImageChange = (e) => {
+    
+    const handleImageChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // 🟢 Keep the file as a raw object (not wrapped in brackets)
     setImage(file);
     setPreviewUrl(URL.createObjectURL(file));
   };
@@ -78,6 +80,7 @@ const AddPropertyPage = () => {
         throw new Error("Property creation failed");
       }
 
+      // 🟢 Pass the raw file straight to your service
       await uploadPropertyImage(property._id, image);
 
       alert("Property created successfully");
@@ -89,6 +92,7 @@ const AddPropertyPage = () => {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 transition-colors duration-200 pb-20">

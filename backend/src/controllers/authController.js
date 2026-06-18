@@ -116,9 +116,14 @@ export const updateProfile = async (req, res) => {
       });
     }
 
-    user.name = req.body.name || user.name;
-    user.avatar = req.body.avatar || user.avatar;
-    user.phone = req.body.phone || user.phone;
+    if (req.body.name !== undefined) user.name = req.body.name.trim();
+    if (req.body.phone !== undefined) user.phone = req.body.phone.trim();
+    
+    if (req.body.avatar !== undefined) {
+      user.avatar = req.body.avatar;
+    } else if (req.body.avatarImage !== undefined) {
+      user.avatar = req.body.avatarImage;
+    }
 
     const updatedUser = await user.save();
 
@@ -166,6 +171,37 @@ export const socialLogin = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Social login failed",
+    });
+  }
+};
+
+// 🟢 NEW AVATAR ENGINE: Processes incoming binary profile images via Multer streams securely
+export const updateAvatar = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        message: "No profile photo file provided",
+      });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    // Capture the unique file identity assigned on disk by uploadMiddleware
+    user.avatar = `/uploads/${req.file.filename}`;
+    const updatedUser = await user.save();
+
+    res.json({
+      success: true,
+      user: formatUser(updatedUser),
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
     });
   }
 };

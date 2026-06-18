@@ -1,9 +1,21 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Sun, Moon } from "lucide-react";
+import {
+  Sun,
+  Moon,
+  Menu,
+  X,
+  LayoutDashboard,
+  PlusSquare,
+  User,
+  LogOut,
+  Heart,
+  Shield,
+  Layers,
+} from "lucide-react";
+
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
-import NotificationDropdown from "@/components/notifications/NotificationDropdown";
 
 export default function Navbar() {
   const navigate = useNavigate();
@@ -14,35 +26,19 @@ export default function Navbar() {
   const { theme, setTheme } = useTheme();
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
-
-  const toggleTheme = () => {
-    setTheme(theme === "light" ? "dark" : "light");
-  };
-
-  useEffect(() => {
-    const handleOutsideClick = (event) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target)
-      ) {
-        setDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleOutsideClick);
-
-    return () => {
-      document.removeEventListener(
-        "mousedown",
-        handleOutsideClick
-      );
-    };
-  }, []);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const currentUser =
     user || JSON.parse(localStorage.getItem("user") || "null");
 
-  const userId = currentUser?._id || currentUser?.id || "guest";
+  const userRole = currentUser?.role || "user";
+
+  const isOwnerPanel =
+    userRole === "seller" ||
+    userRole === "owner" ||
+    userRole === "admin";
+
+  const isSuperAdmin = userRole === "super_admin";
 
   const profileAvatarSrc = (() => {
     const dbAvatar =
@@ -51,9 +47,7 @@ export default function Navbar() {
       currentUser?.image ||
       "";
 
-    if (!dbAvatar) {
-      return "";
-    }
+    if (!dbAvatar) return "";
 
     return dbAvatar.startsWith("http")
       ? dbAvatar
@@ -61,78 +55,98 @@ export default function Navbar() {
   })();
 
   const displayUserName = currentUser?.name || "User";
-  const displayUserEmail = currentUser?.email || "user@example.com";
-  const firstInitial = displayUserName.charAt(0).toUpperCase();
+  const displayUserEmail =
+    currentUser?.email || "user@example.com";
+  const firstInitial =
+    displayUserName.charAt(0).toUpperCase();
 
-  const userRole = currentUser?.role || "user";
-
-  const handleLogoutActionExecution = async () => {
-    setDropdownOpen(false);
-
-    try {
-      logout();
-      navigate("/login");
-    } catch (err) {
-      console.error(err);
-      navigate("/login");
-    }
+  const toggleTheme = () => {
+    setTheme(theme === "light" ? "dark" : "light");
   };
 
-  const isActiveRoute = (path) => location.pathname === path;
+  const handleLogout = () => {
+    setDropdownOpen(false);
+    setMobileOpen(false);
+    logout();
+    navigate("/login");
+  };
+
+  const isActive = (path) =>
+    location.pathname === path;
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target)
+      ) {
+        setDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener(
+      "mousedown",
+      handleClickOutside
+    );
+
+    return () =>
+      document.removeEventListener(
+        "mousedown",
+        handleClickOutside
+      );
+  }, []);
 
   return (
-    <header className="sticky top-0 z-50 bg-white dark:bg-slate-950 border-b w-full">
-      <div className="max-w-[1320px] mx-auto px-4 h-[70px] flex items-center justify-between">
-
-        <Link to="/" className="font-black text-blue-600">
-          🏠 EstateEase
+    <header className="sticky top-0 z-50 w-full bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+      <div className="max-w-[1320px] mx-auto px-4 h-[74px] flex items-center justify-between">
+        <Link
+          to="/"
+          className="font-black text-lg tracking-tight text-blue-600 no-underline"
+        >
+          EstateEase
         </Link>
 
-        <nav className="hidden md:flex gap-6 text-sm font-semibold">
-          <Link className={isActiveRoute("/") ? "text-blue-600" : ""} to="/">
-            Home
-          </Link>
-          <Link
-            className={isActiveRoute("/properties") ? "text-blue-600" : ""}
-            to="/properties"
-          >
-            Properties
-          </Link>
-          <Link
-            className={isActiveRoute("/about") ? "text-blue-600" : ""}
-            to="/about"
-          >
-            About
-          </Link>
+        <nav className="hidden md:flex items-center gap-7 text-sm font-bold">
+          <Link to="/">Home</Link>
+          <Link to="/properties">Properties</Link>
+          <Link to="/about">About</Link>
 
           {token && (
-            <Link
-              className={isActiveRoute("/favorites") ? "text-red-500" : ""}
-              to="/favorites"
-            >
-              Favorites
-            </Link>
+            <>
+              <Link to="/favorites">Favorites</Link>
+              <Link to="/inbox">Inbox</Link>
+            </>
           )}
         </nav>
 
-        <div className="flex items-center gap-3" ref={dropdownRef}>
-          <button onClick={toggleTheme}>
-            {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
+        <div
+          className="flex items-center gap-3 relative"
+          ref={dropdownRef}
+        >
+          <button
+            onClick={toggleTheme}
+            className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800"
+          >
+            {theme === "light" ? (
+              <Moon size={16} />
+            ) : (
+              <Sun size={16} />
+            )}
           </button>
-
-          <NotificationDropdown />
 
           {token ? (
             <div className="relative">
               <button
-                onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="w-10 h-10 rounded-full bg-blue-600 text-white font-bold overflow-hidden"
+                onClick={() =>
+                  setDropdownOpen(!dropdownOpen)
+                }
+                className="w-10 h-10 rounded-full overflow-hidden bg-blue-600 text-white font-black"
               >
                 {profileAvatarSrc ? (
                   <img
                     src={profileAvatarSrc}
-                    alt="Profile"
-                    className="w-full h-full object-cover rounded-full"
+                    alt="avatar"
+                    className="w-full h-full object-cover"
                   />
                 ) : (
                   firstInitial
@@ -140,77 +154,106 @@ export default function Navbar() {
               </button>
 
               {dropdownOpen && (
-                <div className="absolute right-0 top-12 bg-white dark:bg-slate-900 border rounded-xl w-56">
-                  <div className="p-3 border-b">
-                    <p className="font-bold">{displayUserName}</p>
-                    <p className="text-xs">{displayUserEmail}</p>
+                <div className="absolute right-0 top-14 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+                  <div className="p-4 border-b border-slate-100 dark:border-slate-800">
+                    <p className="font-black text-sm">
+                      {displayUserName}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {displayUserEmail}
+                    </p>
                   </div>
 
                   <Link
                     to="/profile"
-                    onClick={() => setDropdownOpen(false)}
-                    className="block p-3"
+                    className="flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800"
                   >
+                    <User size={16} />
                     Profile
                   </Link>
 
-                  {(userRole === "seller" ||
-                    userRole === "owner" ||
-                    userRole === "admin") && (
+                  {isOwnerPanel && (
                     <>
                       <Link
                         to="/dashboard"
-                        onClick={() => setDropdownOpen(false)}
-                        className="block p-3"
+                        className="flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800"
                       >
-                        Dashboard
+                        <LayoutDashboard size={16} />
+                        Owner Dashboard
+                      </Link>
+
+                      <Link
+                        to="/leads"
+                        className="flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800"
+                      >
+                        <Layers size={16} />
+                        Leads
                       </Link>
 
                       <Link
                         to="/add-property"
-                        onClick={() => setDropdownOpen(false)}
-                        className="block p-3"
+                        className="flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800"
                       >
+                        <PlusSquare size={16} />
                         Add Property
                       </Link>
                     </>
                   )}
 
-                  {userRole === "super_admin" && (
+                  {isSuperAdmin && (
                     <>
                       <Link
                         to="/admin-dashboard"
-                        onClick={() => setDropdownOpen(false)}
-                        className="block p-3"
+                        className="flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800"
                       >
-                        Admin Panel
+                        <Shield size={16} />
+                        Super Admin Panel
                       </Link>
 
                       <Link
                         to="/admin/matrix-settings"
-                        onClick={() => setDropdownOpen(false)}
-                        className="block p-3"
+                        className="flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800"
                       >
-                        Settings
+                        <Layers size={16} />
+                        Matrix Settings
                       </Link>
                     </>
                   )}
 
                   <button
-                    onClick={handleLogoutActionExecution}
-                    className="w-full text-left p-3 text-red-600 border-t"
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-3 p-3 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 border-t"
                   >
+                    <LogOut size={16} />
                     Logout
                   </button>
                 </div>
               )}
             </div>
           ) : (
-            <>
+            <div className="flex items-center gap-3">
               <Link to="/login">Login</Link>
-              <Link to="/signup">Join</Link>
-            </>
+              <Link
+                to="/signup"
+                className="bg-blue-600 text-white px-4 py-2 rounded-xl"
+              >
+                Join
+              </Link>
+            </div>
           )}
+
+          <button
+            onClick={() =>
+              setMobileOpen(!mobileOpen)
+            }
+            className="md:hidden"
+          >
+            {mobileOpen ? (
+              <X size={20} />
+            ) : (
+              <Menu size={20} />
+            )}
+          </button>
         </div>
       </div>
     </header>

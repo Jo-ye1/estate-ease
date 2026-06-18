@@ -3,13 +3,13 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import AppRoutes from "./routes/AppRoutes";
 import "./index.css";
-import { ThemeProvider } from "./context/ThemeContext"; 
-import { AuthProvider } from "./context/AuthContext";
-import { FavoritesProvider } from "./context/FavoritesContext";
-import { NotificationProvider } from "./context/NotificationContext";
+import { ThemeProvider } from "./context/ThemeContext.jsx"; 
+import { AuthProvider } from "./context/AuthContext.jsx";
+import { FavoritesProvider } from "./context/FavoritesContext.jsx";
+import { NotificationProvider } from "./context/NotificationContext.jsx";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-  <React.StrictMode>
+  //<React.StrictMode>
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
@@ -21,5 +21,5 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>
-  </React.StrictMode>
+  //</React.StrictMode>
 );

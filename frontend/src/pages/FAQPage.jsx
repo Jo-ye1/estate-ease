@@ -1,72 +1,51 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom"; 
-// 👑 FIXED: Added missing Search, ChevronDown, and MessageSquare icons to clear your ReferenceErrors!
 import { Search, ChevronDown, MessageSquare } from 'lucide-react';
 import Navbar from "@/components/home/Navbar";
+import axios from "axios"; // 🟢 Added to pull content dynamically from your server
 
 export default function FAQPage() {
-  // --- 1. State Hooks initialized natively with LocalStorage data or defaults ---
-  const [faqTitle, setFaqTitle] = useState(() => localStorage.getItem('faq_title') || "Frequently Asked Questions");
-  const [faqSub, setFaqSub] = useState(() => localStorage.getItem('faq_subheading') || "Get instant architectural answers regarding real estate workflows and engine routing");
+  const [faqTitle, setFaqTitle] = useState("Frequently Asked Questions");
+  const [faqSub, setFaqSub] = useState("Get instant architectural answers regarding real estate workflows and engine routing");
   const [searchQuery, setSearchQuery] = useState("");
   const [openIndex, setOpenIndex] = useState(null);
+  const [faqData, setFaqData] = useState([]);
 
-  const [faqData, setFaqData] = useState(() => {
-    const saved = localStorage.getItem('faq_items');
-    return saved ? JSON.parse(saved) : [
-      {
-        id: 1,
-        q: "How do I verify a property listing's credentials?",
-        a: "All properties must pass our strict regulatory verification pipeline. Sellers submit official deed documents through their dashboard module, which our licensed corporate brokers audit within a 24-hour turnaround parameter before the asset is indexed live."
-      },
-      {
-        id: 2,
-        q: "What are the brokerage fees for closing real estate deals?",
-        a: "EstateEase establishes a transparent operational marketplace grid. Buyers face zero index routing charges, while certified brokers/sellers operate under a fixed 2.5% transaction settlement framework variable upon closing escrow loops."
-      },
-      {
-        id: 3,
-        q: "Can I transition my account from a standard Buyer to a Broker?",
-        a: "Absolutely. Navigate directly into your Profile Account Settings menu and submit your operational credential documentation under the account authorization options tab. Our core registry panel adjusts permission levels instantly upon approval."
-      },
-      {
-        id: 4,
-        q: "How does the bookmarked favorites pool synchronize?",
-        a: "Your favorited assets sync continuously through our global Context API matrix directly onto your MongoDB cloud clusters. This guarantees that listings you bookmark on high-resolution widescreen layout terminals load instantly across your mobile devices."
-      },
-      {
-        id: 5,
-        q: "What happens if a property listing has incorrect metadata coordinates?",
-        a: "Platform data integrity is our highest priority. Administrators can instantly access the System Control Matrix spreadsheet grid panel to purge violating documents or suspend accounts that repeatedly violate input guidelines."
-      }
-    ];
-  });
-
-  // --- 2. Live Memory Synchronizer Listener: Tracks cross-tab modifications ---
+  // --- 🟢 LIVE BACKEND DATA CONTENT SYNCHRONIZATION LOOP ---
   useEffect(() => {
-    const syncFaqPageMemory = () => {
-      setFaqTitle(localStorage.getItem('faq_title') || "Frequently Asked Questions");
-      setFaqSub(localStorage.getItem('faq_subheading') || "Get instant architectural answers regarding real estate workflows and engine routing");
-      
-      const savedItems = localStorage.getItem('faq_items');
-      if (savedItems) setFaqData(JSON.parse(savedItems));
+    const fetchFaqDetailsFromDatabase = async () => {
+      try {
+        const response = await axios.get("http://localhost:5000/api/admin-settings/faq");
+        const doc = response.data;
+        
+        if (doc) {
+          if (doc.title) setFaqTitle(doc.title);
+          if (doc.subheading) setFaqSub(doc.subheading);
+          
+          // Sync your backend array directly into your rendering loop grid state
+          if (doc.faqItems && doc.faqItems.length > 0) {
+            setFaqData(doc.faqItems);
+          }
+        }
+      } catch (err) {
+        console.error("Content hydration failed, falling back to static local storage profiles:", err);
+        const saved = localStorage.getItem('faq_items');
+        if (saved) setFaqData(JSON.parse(saved));
+      }
     };
 
-    window.addEventListener('storage', syncFaqPageMemory);
-    syncFaqPageMemory(); // Initial verification lifecycle lookup on page mount
-
-    return () => window.removeEventListener('storage', syncFaqPageMemory);
+    fetchFaqDetailsFromDatabase();
   }, []);
 
   const toggleAccordion = (index) => {
     setOpenIndex(openIndex === index ? null : index);
   };
 
-  // --- 3. Filter entries dynamically matching query inputs ---
   const filteredFaqs = faqData.filter(item => 
     item.q?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     item.a?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
 
   return (
     <div className="w-full bg-slate-50 dark:bg-slate-950 min-h-screen select-none text-left transition-colors duration-200 pb-24 flex flex-col">

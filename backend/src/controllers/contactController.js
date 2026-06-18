@@ -1,5 +1,7 @@
 import Lead from "../models/Lead.js";
 import Property from "../models/Property.js";
+import Conversation from "../models/Conversation.js";
+import Message from "../models/Message.js";
 import { createNotification } from "../utils/createNotification.js";
 
 export const contactAgent = async (req, res) => {
@@ -15,6 +17,7 @@ export const contactAgent = async (req, res) => {
       });
     }
 
+    // Create lead
     const lead = await Lead.create({
       property: property._id,
       owner: property.owner._id,
@@ -24,6 +27,42 @@ export const contactAgent = async (req, res) => {
       message,
     });
 
+    let conversation = await Conversation.findOne({
+      property: property._id,
+      participants: {
+        $all: [req.user._id, property.owner._id],
+      },
+    });
+
+    // Create conversation if missing
+    if (!conversation) {
+      conversation = await Conversation.create({
+        participants: [
+          req.user._id,
+          property.owner._id,
+        ],
+        property: property._id,
+        lastMessage: message,
+        lastMessageAt: new Date(),
+      });
+    }
+
+    // Create first message
+    const firstMessage = await Message.create({
+      conversation: conversation._id,
+      sender: req.user._id,
+      receiver: property.owner._id,
+      property: property._id,
+      text: message,
+    });
+
+    // Update conversation
+    conversation.lastMessage = message;
+    conversation.lastMessageAt = new Date();
+
+    await conversation.save();
+
+    // Notify owner
     await createNotification({
       user: property.owner._id,
       type: "NEW_LEAD",
@@ -34,8 +73,10 @@ export const contactAgent = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: "Lead submitted successfully",
+      message: "Inquiry sent successfully",
       lead,
+      conversationId: conversation._id,
+      firstMessage,
     });
   } catch (error) {
     res.status(500).json({

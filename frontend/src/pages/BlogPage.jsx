@@ -2,66 +2,38 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, Clock, ArrowRight, Search } from 'lucide-react';
 import Navbar from "@/components/home/Navbar";
+import api from "@/lib/api";
 
 export default function BlogPage() {
-  // --- 1. Dynamic states linked directly to browser storage memory ---
-  const [journalTitle, setJournalTitle] = useState(() => localStorage.getItem('blog_title') || "The Estate Ease Journal");
-  const [journalSub, setJournalSub] = useState(() => localStorage.getItem('blog_subheading') || "Stay up to date with professional market insights, broker methodologies, and regulatory tutorials.");
+  const [journalTitle, setJournalTitle] = useState("");
+  const [journalSub, setJournalSub] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [posts, setPosts] = useState([]);
 
-  const [posts, setPosts] = useState(() => {
-    const saved = localStorage.getItem('blog_posts');
-    return saved ? JSON.parse(saved) : [
-      {
-        id: 1,
-        title: "Redefining Urban Spaces: The Rise of Sustainable Architecture",
-        category: "ARCHITECTURE",
-        date: "2026-05-12",
-        readTime: "5 MIN READ",
-        excerpt: "Explore how contemporary real estate developers are leveraging smart materials and ecological grid panels to create self-sustaining housing modules.",
-        image: "https://unsplash.com"
-      },
-      {
-        id: 2,
-        title: "Navigating Escrow: A First-Time Home Buyer's Blueprint",
-        category: "GUIDES",
-        date: "2026-05-28",
-        readTime: "7 MIN READ",
-        excerpt: "Demystifying complex transaction pipelines, database routing verification logs, and closing fees parameters to protect your upcoming capital placements.",
-        image: "https://unsplash.com"
-      },
-      {
-        id: 3,
-        title: "Widescreen Interiors: Maximizing Tiny Luxury Formats",
-        category: "INTERIOR DESIGN",
-        date: "2026-06-02",
-        readTime: "4 MIN READ",
-        excerpt: "Learn the professional layout secrets used by luxury developers to make compact studio modules stretch visually open using layout symmetry.",
-        image: "https://unsplash.com"
-      }
-    ];
-  });
-
-  // --- 2. Live Runtime Synchronization Hook ---
   useEffect(() => {
-    const syncBlogMemory = () => {
-      setJournalTitle(localStorage.getItem('blog_title') || "The Estate Ease Journal");
-      setJournalSub(localStorage.getItem('blog_subheading') || "Stay up to date with professional market insights, broker methodologies, and regulatory tutorials.");
-      const savedPosts = localStorage.getItem('blog_posts');
-      if (savedPosts) setPosts(JSON.parse(savedPosts));
+    const load = async () => {
+      try {
+        // 🟢 FIXED: Pointing directly to the absolute administrative CMS route prefix
+        const { data } = await api.get("/admin-settings/blog");
+        if (data) {
+          setJournalTitle(data.journalTitle || "The Estate Ease Journal");
+          setJournalSub(data.journalSub || "Stay up to date with professional market insights, broker methodologies, and regulatory tutorials.");
+          setPosts(data.posts || []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch blog posts from live database engine:", err);
+      }
     };
-
-    window.addEventListener('storage', syncBlogMemory);
-    syncBlogMemory(); 
-    return () => window.removeEventListener('storage', syncBlogMemory);
+    load();
   }, []);
 
-  // --- 3. Filter entries based on the search query input ---
+
   const filteredPosts = posts.filter(post => 
     post.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     post.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     post.excerpt?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
 
   return (
     <div className="w-full bg-slate-50 dark:bg-slate-950 min-h-screen select-none text-left transition-colors duration-200 pb-24">
@@ -136,16 +108,17 @@ export default function BlogPage() {
                   </div>
 
                   {/* Read Document Dynamic Link Trigger */}
-                  <div className="pt-4 border-t border-slate-100 dark:border-slate-800/60">
-                    {/* 👑 FIXED DEEP LINKING: Converted from an un-routed static button into a clean, single-page client router Link endpoint */}
-                    <Link 
-                      to={`/blog/${post.id}`} 
-                      className="text-xs font-black uppercase tracking-wider text-blue-600 dark:text-blue-500 hover:text-blue-700 dark:hover:text-blue-400 no-underline flex items-center gap-1.5 transition-colors cursor-pointer outline-none"
-                    >
-                      <span>Read Full Document</span>
-                      <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
-                    </Link>
-                  </div>
+<div className="pt-4 border-t border-slate-100 dark:border-slate-800/60">
+  <Link 
+    to={`/blog/${post.id}`} 
+    state={{ article: post }}
+    className="inline-flex items-center gap-1 text-xs font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 no-underline hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+  >
+    <span>Read Full Document</span>
+    <ArrowRight className="w-3.5 h-3.5" />
+  </Link>
+</div>
+
                 </div>
 
               </div>

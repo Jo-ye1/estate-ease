@@ -37,15 +37,51 @@ const leadSchema = new mongoose.Schema(
       required: true,
     },
 
+    // 🟢 UPDATED: Full CRM pipeline lifecycle statuses
     status: {
       type: String,
-      enum: ["new", "contacted", "closed"],
-      default: "new",
+      enum: [
+        "new",
+        "contacted",
+        "qualified",
+        "negotiating",
+        "won",
+        "lost",
+        "archived"
+      ],
+      default: "new"
     },
 
     source: {
       type: String,
       default: "property_contact_form",
+    },
+
+    // 🟢 ADDED: CRM Progression tracking timestamps
+    contactedAt: {
+      type: Date,
+      default: null,
+    },
+
+    qualifiedAt: {
+      type: Date,
+      default: null,
+    },
+
+    negotiatingAt: {
+      type: Date,
+      default: null,
+    },
+
+    closedAt: {
+      type: Date,
+      default: null,
+    },
+
+    // 🟢 ADDED: Lost details logging
+    lossReason: {
+      type: String,
+      default: "",
     },
   },
   { timestamps: true }

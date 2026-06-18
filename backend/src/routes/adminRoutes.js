@@ -6,6 +6,7 @@ import {
   getAdminSummaryDashboard,
   adminDeleteUser,
   updateUserRole,
+  getSuperAdminAnalytics, // 🟢 IMPORT ADDED HERE
 } from "../controllers/adminController.js";
 
 import { getDashboardAnalytics } from "../controllers/analyticsController.js";
@@ -46,6 +47,13 @@ router.get(
   protect,
   adminOnly,
   getAllLeads
+);
+
+router.get(
+  "/super-admin/analytics", 
+  protect, 
+  adminOnly, // 🟢 MIDDLEWARE SYNCED FOR MAXIMUM SECURITY
+  getSuperAdminAnalytics
 );
 
 export default router;

@@ -1,41 +1,49 @@
 import mongoose from "mongoose";
 
-const notificationSchema = new mongoose.Schema(
+const NotificationSchema = new mongoose.Schema(
   {
-    user: {
+    recipient: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
+    },
+
+    sender: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
     },
 
     type: {
       type: String,
       enum: [
         "NEW_LEAD",
-        "LEAD_UPDATED",
-        "PROPERTY_CREATED",
-        "PROPERTY_UPDATED",
-        "PROPERTY_DELETED",
+        "PROPERTY_APPROVED",
+        "PROPERTY_REJECTED",
         "ROLE_CHANGED",
+        "SYSTEM_ALERT",
+        "LEAD_UPDATED",
       ],
-      required: true,
     },
 
     title: {
       type: String,
       required: true,
-      trim: true,
     },
 
     message: {
       type: String,
       required: true,
-      trim: true,
     },
 
-    referenceId: {
+    relatedId: {
       type: mongoose.Schema.Types.ObjectId,
       default: null,
+    },
+
+    relatedType: {
+      type: String,
+      default: "",
     },
 
     isRead: {
@@ -43,11 +51,10 @@ const notificationSchema = new mongoose.Schema(
       default: false,
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-notificationSchema.index({ user: 1 });
-
-export default mongoose.models.Notification || mongoose.model("Notification", notificationSchema);
+export default mongoose.model(
+  "Notification",
+  NotificationSchema
+);

@@ -86,10 +86,12 @@ const propertySchema = new mongoose.Schema(
       type: String,
       enum: [
         "draft",
+        "pending",
         "published",
-        "archived",
         "sold",
         "closed",
+        "archived",
+        "rejected"
       ],
       default: "draft",
     },
@@ -97,6 +99,42 @@ const propertySchema = new mongoose.Schema(
     images: {
       type: [String],
       default: [],
+    },
+
+    isFeatured: {
+      type: Boolean,
+      default: false,
+    },
+
+    featuredUntil: {
+      type: Date,
+      default: null,
+    },
+
+    boostScore: {
+      type: Number,
+      default: 0,
+    },
+
+    boostExpiresAt: {
+      type: Date,
+      default: null,
+    },
+
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
+    approvedAt: {
+      type: Date,
+      default: null,
+    },
+
+    rejectedReason: {
+      type: String,
+      default: "",
     },
   },
   {

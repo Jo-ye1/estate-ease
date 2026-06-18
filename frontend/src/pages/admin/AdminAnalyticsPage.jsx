@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Navbar from "@/components/home/Navbar";
-import { getAnalytics } from "@/services/analyticsService";
+import { getAnalytics } from "@/services/analyticsServices";
+
 
 export default function AdminAnalyticsPage() {
   const [analytics, setAnalytics] = useState(null);

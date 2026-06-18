@@ -1,11 +1,10 @@
 import Favorite from "../models/Favorite.js";
 import Property from "../models/Property.js";
+import { trackFavorite } from "../services/propertyAnalyticsService.js";
 
 export const getFavorites = async (req, res) => {
   try {
-    const favorites = await Favorite.find({
-      user: req.user._id,
-    })
+    const rawFavorites = await Favorite.find({ user: req.user._id })
       .populate({
         path: "property",
         populate: {
@@ -15,9 +14,24 @@ export const getFavorites = async (req, res) => {
       })
       .sort({ createdAt: -1 });
 
+    const validFavorites = [];
+    const deadFavoriteIds = [];
+
+    for (const fav of rawFavorites) {
+      if (fav.property) {
+        validFavorites.push(fav);
+      } else {
+        deadFavoriteIds.push(fav._id);
+      }
+    }
+
+    if (deadFavoriteIds.length > 0) {
+      await Favorite.deleteMany({ _id: { $in: deadFavoriteIds } });
+    }
+
     res.json({
       success: true,
-      favorites,
+      favorites: validFavorites,
     });
   } catch (error) {
     res.status(500).json({
@@ -54,6 +68,8 @@ export const addFavorite = async (req, res) => {
       property: propertyId,
     });
 
+    await trackFavorite(propertyId);
+
     const populatedFavorite = await Favorite.findById(
       favorite._id
     ).populate({
@@ -79,20 +95,23 @@ export const removeFavorite = async (req, res) => {
   try {
     const { propertyId } = req.params;
 
-    await Favorite.findOneAndDelete({
+    await Favorite.deleteMany({
       user: req.user._id,
-      property: propertyId,
+      $or: [
+        { property: propertyId },
+        { _id: propertyId }
+      ]
     });
 
-    const favorites = await Favorite.find({
-      user: req.user._id,
-    }).populate({
+    const rawFavorites = await Favorite.find({ user: req.user._id }).populate({
       path: "property",
       populate: {
         path: "owner",
         select: "name email avatar",
       },
     });
+
+    const favorites = rawFavorites.filter(fav => fav.property !== null);
 
     res.json({
       success: true,
@@ -129,17 +148,19 @@ export const toggleFavorite = async (req, res) => {
         user: req.user._id,
         property: propertyId,
       });
+
+      await trackFavorite(propertyId);
     }
 
-    const favorites = await Favorite.find({
-      user: req.user._id,
-    }).populate({
+    const rawFavorites = await Favorite.find({ user: req.user._id }).populate({
       path: "property",
       populate: {
         path: "owner",
         select: "name email avatar",
       },
     });
+
+    const favorites = rawFavorites.filter(fav => fav.property !== null);
 
     res.json({
       success: true,

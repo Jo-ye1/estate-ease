@@ -49,3 +49,14 @@ export const protect = async (
     });
   }
 };
+
+// Add this at the very bottom of src/middleware/authMiddleware.js
+export const adminOnly = (req, res, next) => {
+  if (req.user && (req.user.role === "admin" || req.user.role === "super_admin")) {
+    next();
+  } else {
+    res.status(403).json({
+      message: "Access denied. Admin authorization required."
+    });
+  }
+};

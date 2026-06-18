@@ -3,6 +3,22 @@ import mongoose from "mongoose";
 import fs from "fs";
 import path from "path";
 
+import { 
+  initializePropertyAnalytics, 
+  trackPropertyView, 
+  trackApprovalSubmission, 
+  trackPublishDate 
+} from "../services/propertyAnalyticsService.js";
+
+import Favorite from "../models/Favorite.js"; // 🟢 ADDED THIS IMPORT AT THE TOP
+
+
+import { createAuditLog } from "../services/auditService.js";
+import Subscription from "../models/Subscription.js";
+import { PLANS } from "../config/plans.js"; 
+import { logRevenue } from "../services/revenueService.js";
+
+
 export const createProperty = async (req, res) => {
   try {
     const {
@@ -19,6 +35,25 @@ export const createProperty = async (req, res) => {
       availabilityStatus,
       pricing,
     } = req.body;
+
+    const sub = await Subscription.findOne({
+      user: req.user._id,
+    });
+
+    const plan = PLANS[sub?.plan || "free"];
+
+    const propertyCount = await Property.countDocuments({
+      owner: req.user._id,
+    });
+
+    if (
+      plan.maxProperties !== -1 &&
+      propertyCount >= plan.maxProperties
+    ) {
+      return res.status(403).json({
+        message: "Property limit reached. Upgrade plan.",
+      });
+    }
 
     const property = await Property.create({
       title,
@@ -38,6 +73,18 @@ export const createProperty = async (req, res) => {
       images: [],
     });
 
+    await initializePropertyAnalytics(property._id);
+
+    await createAuditLog({
+      actor: req.user._id,
+      action: "PROPERTY_CREATED",
+      targetType: "Property",
+      targetId: property._id,
+      metadata: {
+        title: property.title,
+      },
+    });
+
     res.status(201).json(property);
   } catch (error) {
     res.status(400).json({
@@ -45,6 +92,8 @@ export const createProperty = async (req, res) => {
     });
   }
 };
+
+
 
 export const uploadPropertyImage = async (req, res) => {
   try {
@@ -56,9 +105,7 @@ export const uploadPropertyImage = async (req, res) => {
       });
     }
 
-    if (
-      property.owner.toString() !== req.user._id.toString()
-    ) {
+    if (property.owner.toString() !== req.user._id.toString()) {
       return res.status(401).json({
         message: "Unauthorized",
       });
@@ -74,9 +121,20 @@ export const uploadPropertyImage = async (req, res) => {
       (file) => `/uploads/${file.filename}`
     );
 
-    property.images.push(...imagePaths);
+    // 🟢 THE ABSOLUTE FIX: Overwrite the images array completely so old files can't cause conflicts
+    property.images = imagePaths; 
 
     await property.save();
+
+    await createAuditLog({
+      actor: req.user._id,
+      action: "PROPERTY_IMAGES_UPLOADED",
+      targetType: "Property",
+      targetId: property._id,
+      metadata: {
+        count: req.files.length,
+      },
+    });
 
     res.json(property);
   } catch (error) {
@@ -85,6 +143,8 @@ export const uploadPropertyImage = async (req, res) => {
     });
   }
 };
+
+
 
 export const getProperties = async (req, res) => {
   try {
@@ -100,7 +160,7 @@ export const getProperties = async (req, res) => {
     } = req.query;
 
     const query = {
-      listingStatus: "published",
+      listingStatus: { $in: ["published", "available", "Available", "Published"] },
     };
 
     const andConditions = [];
@@ -173,7 +233,11 @@ export const getProperties = async (req, res) => {
     }
 
     const properties = await Property.find(query)
-      .sort({ createdAt: -1 })
+      .sort({
+        boostScore: -1,
+        isFeatured: -1,
+        createdAt: -1,
+      })
       .populate("owner", "name email avatar");
 
     res.json(properties);
@@ -196,23 +260,28 @@ export const updateProperty = async (req, res) => {
       });
     }
 
-    if (
-      property.owner.toString() !== req.user._id.toString()
-    ) {
+    if (property.owner.toString() !== req.user._id.toString()) {
       return res.status(401).json({
         message: "Unauthorized",
       });
     }
 
-    const updatedProperty =
-      await Property.findByIdAndUpdate(
-        req.params.id,
-        req.body,
-        {
-          new: true,
-          runValidators: true,
-        }
-      ).populate("owner", "name email avatar");
+    // 🟢 FIXED: Directly update the document using req.body with no array stripping hooks
+    const updatedProperty = await Property.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      {
+        new: true,
+        runValidators: true,
+      }
+    ).populate("owner", "name email avatar");
+
+    await createAuditLog({
+      actor: req.user._id,
+      action: "PROPERTY_UPDATED",
+      targetType: "Property",
+      targetId: updatedProperty._id,
+    });
 
     res.json(updatedProperty);
   } catch (error) {
@@ -221,6 +290,8 @@ export const updateProperty = async (req, res) => {
     });
   }
 };
+
+
 
 export const deleteProperty = async (req, res) => {
   try {
@@ -240,6 +311,9 @@ export const deleteProperty = async (req, res) => {
       });
     }
 
+    // 🟢 THE FIX: Delete all user favorite bookmarks pointing to this property to lower favorite metrics instantly
+    await Favorite.deleteMany({ property: property._id });
+
     for (const image of property.images) {
       const filename = image.split("/uploads/")[1];
 
@@ -256,6 +330,13 @@ export const deleteProperty = async (req, res) => {
       }
     }
 
+    await createAuditLog({
+      actor: req.user._id,
+      action: "PROPERTY_DELETED",
+      targetType: "Property",
+      targetId: property._id,
+    });
+
     await property.deleteOne();
 
     res.json({
@@ -267,6 +348,7 @@ export const deleteProperty = async (req, res) => {
     });
   }
 };
+
 
 export const getRelatedProperties = async (req, res) => {
   try {
@@ -383,6 +465,7 @@ export const getMyProperties = async (req, res) => {
   }
 };
 
+
 export const getPropertyById = async (req, res) => {
   try {
     const property = await Property.findById(
@@ -394,7 +477,151 @@ export const getPropertyById = async (req, res) => {
         message: "Property not found",
       });
     }
+
+    // 2. HOOK B: Track the view using the found property ID
+    await trackPropertyView(property._id);
+
     res.json(property);
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+
+export const submitPropertyForReview = async (req, res) => {
+  try {
+    const property = await Property.findById(req.params.id);
+
+    if (!property) {
+      return res.status(404).json({
+        message: "Property not found",
+      });
+    }
+
+    if (
+      property.owner.toString() !== req.user._id.toString()
+    ) {
+      return res.status(403).json({
+        message: "Unauthorized",
+      });
+    }
+
+    property.listingStatus = "pending";
+
+    await property.save();
+
+    // 🟢 ANALYTICS HOOK: Track the approval submission date milestone
+    await trackApprovalSubmission(property._id);
+
+    await AuditLog.create({
+      actor: req.user._id,
+      action: "PROPERTY_SUBMITTED",
+      targetId: property._id,
+      targetType: "Property",
+      message: `${property.title} submitted for review`,
+    });
+
+    res.json({
+      success: true,
+      property,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+export const rejectProperty = async (req, res) => {
+  try {
+    const { reason } = req.body;
+
+    const property = await Property.findById(req.params.id);
+
+    if (!property) {
+      return res.status(404).json({
+        message: "Property not found",
+      });
+    }
+
+    property.listingStatus = "rejected";
+    property.rejectedReason = reason || "No reason provided";
+
+    await property.save();
+
+    await AuditLog.create({
+      actor: req.user._id,
+      action: "PROPERTY_REJECTED",
+      targetId: property._id,
+      targetType: "Property",
+      message: `${property.title} rejected`,
+    });
+
+    await createNotification({
+      recipient: property.owner,
+      sender: req.user._id,
+      type: "PROPERTY_REJECTED",
+      title: "Property Rejected",
+      message: `${property.title} was rejected`,
+      relatedId: property._id,
+      relatedType: "Property",
+    });
+
+    res.json({
+      success: true,
+      property,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+export const approveProperty = async (req, res) => {
+  try {
+    const property = await Property.findById(req.params.id);
+
+    if (!property) {
+      return res.status(404).json({
+        message: "Property not found",
+      });
+    }
+
+    property.listingStatus = "published";
+    property.approvedBy = req.user._id;
+    property.approvedAt = new Date();
+    property.rejectedReason = "";
+
+    await property.save();
+
+    // 🟢 ANALYTICS HOOK: Track the public publish date milestone
+    await trackPublishDate(property._id);
+
+    await AuditLog.create({
+      actor: req.user._id,
+      action: "PROPERTY_APPROVED",
+      targetId: property._id,
+      targetType: "Property",
+      message: `${property.title} approved`,
+    });
+
+    await createNotification({
+      recipient: property.owner,
+      sender: req.user._id,
+      type: "PROPERTY_APPROVED",
+      title: "Property Approved",
+      message: `${property.title} has been approved`,
+      relatedId: property._id,
+      relatedType: "Property",
+    });
+
+    res.json({
+      success: true,
+      property,
+    });
   } catch (error) {
     res.status(500).json({
       message: error.message,

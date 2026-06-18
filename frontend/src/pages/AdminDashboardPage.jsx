@@ -3,9 +3,33 @@ import { Link } from "react-router-dom";
 import { ShieldAlert, Users, Layers } from "lucide-react";
 import Navbar from "@/components/home/Navbar";
 import axios from "axios";
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Legend
+} from "recharts";
 
 export default function AdminDashboardPage() {
-  const [displayUsers, setDisplayUsers] = useState([]);
+  const [dashboardData, setDashboardData] = useState({
+    users: [],
+    metrics: {},
+    monthlyUsersGrowth: [],
+    monthlyPropertyGrowth: [],
+    monthlyLeadGrowth: [],
+    propertyStatusDistribution: [],
+    roleDistribution: [],
+    leadFunnel: [],
+  });
   const [loading, setLoading] = useState(true);
 
   const token = localStorage.getItem("token");
@@ -15,7 +39,7 @@ export default function AdminDashboardPage() {
       setLoading(true);
 
       const response = await axios.get(
-        "http://localhost:5000/api/analytics/dashboard",
+        "http://localhost:5000/api/admin/dashboard-summary",
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -23,10 +47,9 @@ export default function AdminDashboardPage() {
         }
       );
 
-      setDisplayUsers(response?.data?.recentUsers || []);
+      setDashboardData(response.data);
     } catch (error) {
       console.error("Failed to fetch admin dashboard users:", error);
-      setDisplayUsers([]);
     } finally {
       setLoading(false);
     }
@@ -70,14 +93,47 @@ export default function AdminDashboardPage() {
           },
         }
       );
-
-      setDisplayUsers((prev) =>
-        prev.filter((user) => user._id !== userId)
-      );
+      
+      setDashboardData(prev => ({
+        ...prev,
+        users: (prev.users || []).filter((user) => user._id !== userId)
+      }));
     } catch (error) {
       console.error("Failed deleting user:", error);
     }
   };
+
+  const userGrowthData = (dashboardData.monthlyUsersGrowth || []).map((item) => ({
+    month: item._id ? `${item._id.month}/${item._id.year}` : "N/A",
+    users: item.totalUsers || 0,
+  }));
+
+  const propertyGrowthData = (dashboardData.monthlyPropertyGrowth || []).map((item) => ({
+    month: item._id ? `${item._id.month}/${item._id.year}` : "N/A",
+    properties: item.totalProperties || 0,
+  }));
+
+  const leadGrowthData = (dashboardData.monthlyLeadGrowth || []).map((item) => ({
+    month: item._id ? `${item._id.month}/${item._id.year}` : "N/A",
+    leads: item.totalLeads || 0,
+  }));
+
+  const propertyStatusData = (dashboardData.propertyStatusDistribution || []).map((item) => ({
+    name: item._id || "Unknown",
+    value: item.total || 0,
+  }));
+
+  const roleDistributionData = (dashboardData.roleDistribution || []).map((item) => ({
+    name: item._id || "Unknown",
+    value: item.total || 0,
+  }));
+
+  const leadFunnelData = (dashboardData.leadFunnel || []).map((item) => ({
+    name: item._id || "Unknown",
+    value: item.total || 0,
+  }));
+
+
 
   return (
     <div className="w-full bg-slate-50 dark:bg-slate-950 min-h-screen flex flex-col">
@@ -109,6 +165,296 @@ export default function AdminDashboardPage() {
           </Link>
         </div>
 
+
+{/* SYSTEM METRICS */}
+<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+
+  {/* Total Users */}
+  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 flex items-center justify-between">
+    <div>
+      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+        Total Users
+      </p>
+      <h2 className="text-2xl font-black mt-2 text-slate-800 dark:text-white">
+        {dashboardData?.metrics?.globalUsersCount || 0}
+      </h2>
+    </div>
+
+    <div className="w-11 h-11 rounded-xl bg-blue-500/10 flex items-center justify-center">
+      <Users className="w-5 h-5 text-blue-600" />
+    </div>
+  </div>
+
+  {/* Total Listings */}
+  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 flex items-center justify-between">
+    <div>
+      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+        Total Listings
+      </p>
+      <h2 className="text-2xl font-black mt-2 text-slate-800 dark:text-white">
+        {dashboardData?.metrics?.globalListingsCount || 0}
+      </h2>
+    </div>
+
+    <div className="w-11 h-11 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+      <Layers className="w-5 h-5 text-emerald-600" />
+    </div>
+  </div>
+
+  {/* Total Leads */}
+  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 flex items-center justify-between">
+    <div>
+      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+        Total Leads
+      </p>
+      <h2 className="text-2xl font-black mt-2 text-slate-800 dark:text-white">
+        {dashboardData?.metrics?.globalLeadsCount || 0}
+      </h2>
+    </div>
+
+    <div className="w-11 h-11 rounded-xl bg-purple-500/10 flex items-center justify-center">
+      <ShieldAlert className="w-5 h-5 text-purple-600" />
+    </div>
+  </div>
+
+</div>
+
+
+
+{/* ANALYTICS GRID */}
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 text-left">
+
+  {/* Users Growth */}
+  <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800">
+    <div className="flex justify-between items-start gap-4 mb-4">
+      <div className="flex flex-col gap-0.5">
+        <h3 className="font-bold text-sm text-slate-800 dark:text-zinc-200 uppercase tracking-tight">Users Growth</h3>
+        <p className="text-[11px] text-slate-400 dark:text-zinc-500">Timeline tracking new account registrations across the ecosystem matrix.</p>
+      </div>
+      <span className="text-xs font-mono font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-zinc-800 px-2 py-1 rounded-md shrink-0">
+        {userGrowthData.reduce((acc, curr) => acc + (curr.users || 0), 0)}
+      </span>
+    </div>
+    <ResponsiveContainer width="100%" height={230}>
+      <LineChart data={userGrowthData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-800" />
+        <XAxis dataKey="month" stroke="#94a3b8" fontSize={11} tickLine={false} />
+        <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} />
+        <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#fff' }} />
+        <Line type="monotone" dataKey="users" stroke="#3b82f6" strokeWidth={3} dot={{ fill: '#3b82f6', r: 4 }} activeDot={{ r: 6 }} />
+      </LineChart>
+    </ResponsiveContainer>
+  </div>
+
+  {/* Properties Growth */}
+  <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800">
+    <div className="flex justify-between items-start gap-4 mb-4">
+      <div className="flex flex-col gap-0.5">
+        <h3 className="font-bold text-sm text-slate-800 dark:text-zinc-200 uppercase tracking-tight">Properties Growth</h3>
+        <p className="text-[11px] text-slate-400 dark:text-zinc-500">Monthly velocity of newly added real estate assets inside the database.</p>
+      </div>
+      <span className="text-xs font-mono font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-zinc-800 px-2 py-1 rounded-md shrink-0">
+        {propertyGrowthData.reduce((acc, curr) => acc + (curr.properties || 0), 0)}
+      </span>
+    </div>
+    <ResponsiveContainer width="100%" height={230}>
+      <BarChart data={propertyGrowthData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-800" />
+        <XAxis dataKey="month" stroke="#94a3b8" fontSize={11} tickLine={false} />
+        <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} />
+        <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#fff' }} />
+        <Bar dataKey="properties" fill="#10b981" radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  </div>
+
+  {/* Leads Growth */}
+  <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800">
+    <div className="flex justify-between items-start gap-4 mb-4">
+      <div className="flex flex-col gap-0.5">
+        <h3 className="font-bold text-sm text-slate-800 dark:text-zinc-200 uppercase tracking-tight">Lead Growth</h3>
+        <p className="text-[11px] text-slate-400 dark:text-zinc-500">Volume tracking inbound buyer transactions generated monthly.</p>
+      </div>
+      <span className="text-xs font-mono font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-zinc-800 px-2 py-1 rounded-md shrink-0">
+        {leadGrowthData.reduce((acc, curr) => acc + (curr.leads || 0), 0)}
+      </span>
+    </div>
+    <ResponsiveContainer width="100%" height={230}>
+      <LineChart data={leadGrowthData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-800" />
+        <XAxis dataKey="month" stroke="#94a3b8" fontSize={11} tickLine={false} />
+        <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} />
+        <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#fff' }} />
+        <Line type="monotone" dataKey="leads" stroke="#f59e0b" strokeWidth={3} dot={{ fill: '#f59e0b', r: 4 }} activeDot={{ r: 6 }} />
+      </LineChart>
+    </ResponsiveContainer>
+  </div>
+
+  {/* Property Status */}
+<div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-2xl p-6 mb-10 text-left">
+  <div className="flex justify-between items-start gap-4 mb-6">
+    <div className="flex flex-col gap-0.5">
+      <h3 className="font-bold text-sm text-slate-800 dark:text-zinc-200 uppercase tracking-tight">Property Status</h3>
+      <p className="text-[11px] text-slate-400 dark:text-zinc-500">Operational asset allocation breakdown grouped by listing parameter rules.</p>
+    </div>
+    <span className="text-xs font-mono font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-zinc-800 px-2 py-1 rounded-md shrink-0">
+      {propertyStatusData.reduce((acc, curr) => acc + (curr.value || 0), 0)}
+    </span>
+  </div>
+
+  <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+    <div className="md:col-span-6 w-full h-[240px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie
+            data={propertyStatusData}
+            dataKey="value"
+            nameKey="name"
+            outerRadius={90}
+            paddingAngle={2}
+          >
+            {(propertyStatusData || []).map((entry, index) => (
+              <Cell
+                key={`cell-${index}`}
+                fill={["#10b981", "#f59e0b", "#e11d48", "#3b82f6", "#8b5cf6"][index % 5]}
+              />
+            ))}
+          </Pie>
+          <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#fff' }} />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
+
+    <div className="md:col-span-6 flex flex-col gap-2 justify-center w-full">
+      <span className="text-[10px] font-mono font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500 block mb-1">
+        Inventory Ledger
+      </span>
+      {(propertyStatusData || []).map((item, index) => (
+        <div 
+          key={index} 
+          className="flex items-center justify-between bg-white dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-800/60 px-4 py-2.5 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.02)]"
+        >
+          <div className="flex items-center gap-3">
+            <div 
+              className="w-2.5 h-2.5 rounded-full shrink-0" 
+              style={{ backgroundColor: ["#10b981", "#f59e0b", "#e11d48", "#3b82f6", "#8b5cf6"][index % 5] }} 
+            />
+            <span className="text-sm font-bold capitalize text-slate-700 dark:text-zinc-300">
+              {item.name}
+            </span>
+          </div>
+          <span className="text-xs font-mono font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded-md min-w-[24px] text-center">
+            {item.value}
+          </span>
+        </div>
+      ))}
+    </div>
+  </div>
+</div>
+
+{/* Role Distribution */}
+<div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-2xl p-5 text-left">
+  <div className="flex justify-between items-start gap-4 mb-6">
+    <div className="flex flex-col gap-0.5">
+      <h3 className="font-bold text-sm text-slate-800 dark:text-zinc-200 uppercase tracking-tight">
+        Role Distribution
+      </h3>
+      <p className="text-[11px] text-slate-400 dark:text-zinc-500">
+        User ecosystem composition matrix by privilege accounts.
+      </p>
+    </div>
+    <span className="text-xs font-mono font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-zinc-800 px-2 py-1 rounded-md shrink-0">
+      {(roleDistributionData || []).reduce((acc, curr) => acc + (curr.value || 0), 0)}
+    </span>
+  </div>
+
+  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+    
+    {/* 📊 PIE CHART AREA */}
+    <div className="md:col-span-6 w-full h-[200px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie
+            data={roleDistributionData}
+            dataKey="value"
+            nameKey="name"
+            outerRadius={75}
+            paddingAngle={2}
+          >
+            {(roleDistributionData || []).map((entry, index) => (
+              <Cell
+                key={`cell-${index}`}
+                fill={["#6366f1", "#ec4899", "#14b8a6", "#f43f5e", "#8b5cf6"][index % 5]}
+              />
+            ))}
+          </Pie>
+          <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#fff' }} />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
+
+    {/* 📋 ACCOUNT PRIVILEGE LEDGER AREA */}
+    <div className="md:col-span-6 flex flex-col gap-2 justify-center w-full">
+      <span className="text-[9px] font-mono font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500 block mb-1">
+        Account Ledger
+      </span>
+      {(roleDistributionData || []).map((item, index) => (
+        <div 
+          key={index} 
+          className="flex items-center justify-between bg-white dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-800/60 px-3.5 py-2 rounded-xl"
+        >
+          <div className="flex items-center gap-2.5">
+            <div 
+              className="w-2.5 h-2.5 rounded-full shrink-0" 
+              style={{ backgroundColor: ["#6366f1", "#ec4899", "#14b8a6", "#f43f5e", "#8b5cf6"][index % 5] }} 
+            />
+            <span className="text-xs font-mono font-black uppercase text-slate-700 dark:text-zinc-300">
+              {item.name}
+            </span>
+          </div>
+          <span className="text-xs font-mono font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded-md min-w-[22px] text-center">
+            {item.value}
+          </span>
+        </div>
+      ))}
+    </div>
+
+  </div>
+</div>
+
+
+  {/* Lead Funnel */}
+  <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800">
+    <div className="flex justify-between items-start gap-4 mb-4">
+      <div className="flex flex-col gap-0.5">
+        <h3 className="font-bold text-sm text-slate-800 dark:text-zinc-200 uppercase tracking-tight">Lead Funnel</h3>
+        <p className="text-[11px] text-slate-400 dark:text-zinc-500">Granular tracking of client pipelines from registration blocks to closure.</p>
+      </div>
+      <span className="text-xs font-mono font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-zinc-800 px-2 py-1 rounded-md shrink-0">
+        {leadFunnelData.reduce((acc, curr) => acc + (curr.value || 0), 0)}
+      </span>
+    </div>
+    <ResponsiveContainer width="100%" height={230}>
+      <BarChart data={leadFunnelData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-800" />
+        <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} />
+        <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} />
+        <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#fff' }} />
+        <Bar dataKey="value" fill="#6366f1" radius={[4, 4, 0, 0]}>
+          {(leadFunnelData || []).map((entry, index) => (
+            <Cell key={`cell-${index}`} fill={["#3b82f6", "#10b981", "#f59e0b", "#ec4899"][index % 4]} />
+          ))}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  </div>
+
+</div>
+
+
+
+
+
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 md:p-6">
           <div className="flex items-center gap-2 mb-5 border-b border-slate-100 dark:border-slate-800 pb-3">
             <Users className="w-4 h-4 text-blue-600" />
@@ -133,7 +479,7 @@ export default function AdminDashboardPage() {
                 </thead>
 
                 <tbody>
-                  {displayUsers.map((account) => (
+                  {dashboardData.users.map((account) => (
                     <tr
                       key={account._id}
                       className="border-b border-slate-100 dark:border-slate-800"
@@ -146,45 +492,43 @@ export default function AdminDashboardPage() {
 
                       <td>{account.email}</td>
 
- <td className="py-4">
-  {account.role === "super_admin" ? (
-    <span className="px-2.5 py-1 bg-purple-500/10 dark:bg-purple-500/20 border border-purple-200 dark:border-purple-800/60 text-purple-600 dark:text-purple-400 text-[10px] font-black rounded-md uppercase tracking-wider">
-      Super Admin
-    </span>
-  ) : (
-    <select
-      value={account.role || "user"}
-      onChange={(e) =>
-        handleRoleToggle(account._id, e.target.value)
-      }
-      className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-1.5 rounded-xl text-slate-800 dark:text-slate-200 text-xs font-medium outline-none focus:border-blue-500 transition-colors"
-    >
-      <option value="user" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">User</option>
-      <option value="seller" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">Seller</option>
-      <option value="admin" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">Admin</option>
-    </select>
-  )}
-</td>
+                      <td className="py-4">
+                        {account.role === "super_admin" ? (
+                          <span className="px-2.5 py-1 bg-purple-500/10 dark:bg-purple-500/20 border border-purple-200 dark:border-purple-800/60 text-purple-600 dark:text-purple-400 text-[10px] font-black rounded-md uppercase tracking-wider">
+                            Super Admin
+                          </span>
+                        ) : (
+                          <select
+                            value={account.role || "user"}
+                            onChange={(e) =>
+                              handleRoleToggle(account._id, e.target.value)
+                            }
+                            className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-1.5 rounded-xl text-slate-800 dark:text-slate-200 text-xs font-medium outline-none focus:border-blue-500 transition-colors"
+                          >
+                            <option value="user" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">User</option>
+                            <option value="seller" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">Seller</option>
+                            <option value="admin" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">Admin</option>
+                          </select>
+                        )}
+                      </td>
 
-
-<td className="py-4 text-right pr-4">
-  {account.role !== "super_admin" ? (
-    <button
-      type="button"
-      onClick={() =>
-        handleAccountPurge(account._id, account.name)
-      }
-      className="inline-flex items-center justify-center h-8 px-4 rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-[11px] font-bold uppercase tracking-wider shadow-2xs hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer outline-none"
-    >
-      Delete
-    </button>
-  ) : (
-    <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 tracking-wide bg-slate-100/60 dark:bg-slate-800/40 px-3 py-1 rounded-full">
-      System Protected
-    </span>
-  )}
-</td>
-
+                      <td className="py-4 text-right pr-4">
+                        {account.role !== "super_admin" ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleAccountPurge(account._id, account.name)
+                            }
+                            className="inline-flex items-center justify-center h-8 px-4 rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-[11px] font-bold uppercase tracking-wider shadow-2xs hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer outline-none"
+                          >
+                            Delete
+                          </button>
+                        ) : (
+                          <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 tracking-wide bg-slate-100/60 dark:bg-slate-800/40 px-3 py-1 rounded-full">
+                            System Protected
+                          </span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

@@ -1,39 +1,64 @@
 import React, { useState, useEffect } from 'react';
 import { HelpCircle, Save, Plus, Trash2 } from 'lucide-react';
+import axios from 'axios'; // 🟢 Added to establish your network communication layers
 
 export default function FaqManager() {
-  // --- 1. State Hooks initialized natively with LocalStorage data or defaults ---
-  const [faqTitle, setFaqTitle] = useState(() => localStorage.getItem('faq_title') || "Frequently Asked Questions");
-  const [faqSub, setFaqSub] = useState(() => localStorage.getItem('faq_subheading') || "Get instant architectural answers regarding real estate workflows and engine routing.");
+  const [faqTitle, setFaqTitle] = useState("Frequently Asked Questions");
+  const [faqSub, setFaqSub] = useState("Get instant architectural answers regarding real estate workflows and engine routing.");
+  const [faqItems, setFaqItems] = useState([]);
 
-  const [faqItems, setFaqItems] = useState(() => {
-    const saved = localStorage.getItem('faq_items');
-    return saved ? JSON.parse(saved) : [
-      {
-        id: 201,
-        q: "How do I verify a property listing's credentials?",
-        a: "Credentials trace automatically through real-time distributed broker network ledgers. Submit a document payload verification task request from your node dashboard to instantiate scanning logs."
-      },
-      {
-        id: 202,
-        q: "What are the brokerage fees for closing real estate deals?",
-        a: "Closing settlement fee variables calculate dynamically based on platform localized regional brackets. Standard corporate operations trace at roughly 1.8% to 2.4% metrics margins."
+  // --- 🟢 FETCH ACCORDION CONTENTS DIRECTLY FROM SERVER ON MOUNT ---
+  useEffect(() => {
+    const loadFaqDataFromDatabase = async () => {
+      try {
+        const response = await axios.get("http://localhost:5000/api/admin-settings/faq");
+        const doc = response.data;
+        if (doc) {
+          if (doc.title) setFaqTitle(doc.title);
+          if (doc.subheading) setFaqSub(doc.subheading);
+          if (doc.faqItems) setFaqItems(doc.faqItems);
+        }
+      } catch (err) {
+        console.error("Failed to load settings from server, falling back to local defaults:", err);
       }
-    ];
-  });
+    };
+    loadFaqDataFromDatabase();
+  }, []);
 
-  // --- 2. Pure LocalStorage Save Operations ---
-  const handleUpdateMainMeta = (e) => {
+  // --- 🟢 FIXED HEADERS SAVE: Persists title text modifications straight to database ---
+  const handleUpdateMainMeta = async (e) => {
     e.preventDefault();
-    localStorage.setItem('faq_title', faqTitle);
-    localStorage.setItem('faq_subheading', faqSub);
-    alert("FAQ Container Context Synced Globally in browser memory!");
+    try {
+      const payload = { title: faqTitle, subheading: faqSub };
+      // Updates main headings document properties safely via your CMS endpoint routes
+      await axios.post("http://localhost:5000/api/admin-settings/faq/meta", payload);
+      
+      localStorage.setItem('faq_title', faqTitle);
+      localStorage.setItem('faq_subheading', faqSub);
+      alert("FAQ Container Context Synced Globally in MongoDB Database!");
+    } catch (err) {
+      alert("Error saving metadata: " + err.message);
+    }
   };
 
-  const handleSaveAllFaqs = (e) => {
+  // --- 🟢 FIXED ITEMS SAVE OPERATOR: Loops and saves individual row objects sequentially ---
+  const handleSaveAllFaqs = async (e) => {
     e.preventDefault();
-    localStorage.setItem('faq_items', JSON.stringify(faqItems));
-    alert("All active FAQ accordion items successfully synchronized!");
+    try {
+      // Loop over every item in your grid array and update it through your backend param endpoints
+      for (const item of faqItems) {
+        const itemPayload = { q: item.q, a: item.a };
+        // Clean number generation fallback coordinates safely parsed into params route
+        const numericId = typeof item.id === 'number' ? item.id : Date.now();
+        await axios.put(`http://localhost:5000/api/admin-settings/faq/items/${numericId}`, itemPayload);
+      }
+
+      localStorage.setItem('faq_items', JSON.stringify(faqItems));
+      alert("All active FAQ accordion items successfully synchronized inside MongoDB!");
+    } catch (err) {
+      console.error("Accordion sync failure:", err);
+      alert("Failed syncing rows: " + err.message);
+    }
   };
 
   const handleInsertBlankAccordion = () => {
@@ -49,16 +74,18 @@ export default function FaqManager() {
   };
 
   const handleDeleteRow = (id) => {
+    if (!window.confirm("Remove this FAQ accordion option row?")) return;
     const updated = faqItems.filter(f => f.id !== id);
     setFaqItems(updated);
     localStorage.setItem('faq_items', JSON.stringify(updated));
   };
 
-  // 🎨 FIXED ADAPTIVE THEME DESIGN SYSTEM CLASSES
   const cardBgClass = "bg-white dark:bg-[#0a101d] border border-slate-200/60 dark:border-slate-800/80 p-6 rounded-2xl mb-6 shadow-xs";
   const inputClass = "w-full bg-slate-50 dark:bg-[#111927] border border-slate-200 dark:border-gray-800 text-slate-900 dark:text-white rounded-xl p-3 text-sm font-medium outline-none focus:border-blue-500 transition-colors";
   const labelClass = "block text-xs font-bold tracking-wider uppercase text-slate-400 dark:text-slate-500 mb-2 text-left";
 
+
+  
   return (
     <div className="w-full">
       {/* Top Block: FAQ Section Layout Global Header Values Setup */}

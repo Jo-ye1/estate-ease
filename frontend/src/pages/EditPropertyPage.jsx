@@ -33,6 +33,7 @@ const EditPropertyPage = () => {
     salePrice: "",
     monthlyRent: "",
     dailyRate: "",
+    images: [],
   });
 
   useEffect(() => {
@@ -54,6 +55,7 @@ const EditPropertyPage = () => {
           salePrice: property?.pricing?.salePrice || "",
           monthlyRent: property?.pricing?.monthlyRent || "",
           dailyRate: property?.pricing?.dailyRate || "",
+          images: property?.images || [] 
         });
 
         if (property?.images?.length > 0) {
@@ -65,10 +67,7 @@ const EditPropertyPage = () => {
           );
         }
       } catch (error) {
-        alert(
-          error?.response?.data?.message ||
-            "Failed to load property"
-        );
+        alert(error?.response?.data?.message || "Failed to load property");
         navigate("/dashboard");
       } finally {
         setLoading(false);
@@ -91,7 +90,13 @@ const EditPropertyPage = () => {
     if (!file) return;
 
     setNewImageFile(file);
-    setPreviewUrl(URL.createObjectURL(file));
+    const localBlobUrl = URL.createObjectURL(file);
+    setPreviewUrl(localBlobUrl);
+
+    setFormData((prev) => ({
+      ...prev,
+      images: [localBlobUrl],
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -99,6 +104,19 @@ const EditPropertyPage = () => {
 
     try {
       setSubmitting(true);
+
+      let activeImagesCollection = formData.images || [];
+
+      if (newImageFile) {
+        const updatedPropertyDocument = await uploadPropertyImage(id, newImageFile);
+        if (updatedPropertyDocument && updatedPropertyDocument.images) {
+          activeImagesCollection = updatedPropertyDocument.images;
+          
+          if (activeImagesCollection.length > 0) {
+            setPreviewUrl(`http://localhost:5000${activeImagesCollection[0]}`);
+          }
+        }
+      }
 
       const payload = {
         title: formData.title,
@@ -114,6 +132,7 @@ const EditPropertyPage = () => {
             ? formData.leaseDuration
             : undefined,
         availabilityStatus: formData.availabilityStatus,
+        images: activeImagesCollection, 
         pricing: {
           salePrice:
             formData.listingType === "sale"
@@ -132,17 +151,12 @@ const EditPropertyPage = () => {
 
       await updateProperty(id, payload);
 
-      if (newImageFile) {
-        await uploadPropertyImage(id, newImageFile);
-      }
-
       alert("Property updated successfully");
       navigate("/dashboard");
+
     } catch (error) {
-      alert(
-        error?.response?.data?.message ||
-          "Failed updating property"
-      );
+      console.error("Update form failure:", error);
+      alert(error?.response?.data?.message || "Failed updating property");
     } finally {
       setSubmitting(false);
     }
@@ -189,15 +203,20 @@ const EditPropertyPage = () => {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           
-          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 p-5 rounded-3xl shadow-xs">
+                    <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 p-5 rounded-3xl shadow-xs">
             <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white mb-3 text-left">Media Assets</h3>
             {(previewUrl || existingImage) ? (
               <div className="relative w-full h-[320px] bg-slate-950 rounded-2xl overflow-hidden border border-slate-200/40 dark:border-slate-800/50 group">
-                <img src={previewUrl || existingImage} alt="Preview" className="w-full h-full object-cover" />
+                <img 
+                  src={previewUrl || existingImage || "/placeholder.jpg"} 
+                  alt="Property Preview" 
+                  className="w-full h-full object-cover"
+                />
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                   <label className="px-4 py-2 bg-white text-slate-900 text-xs font-bold rounded-xl cursor-pointer shadow-md hover:bg-slate-100 transition-colors">
                     Change Photo
-                    <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+                    {/* 🟢 FIXED: Added name="images" attribute to bind with Multer route middleware boundaries */}
+                    <input type="file" name="images" accept="image/*" onChange={handleImageChange} className="hidden" />
                   </label>
                 </div>
               </div>
@@ -207,10 +226,12 @@ const EditPropertyPage = () => {
                   <UploadCloud className="w-5 h-5" />
                 </div>
                 <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Upload Cover Image</span>
-                <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+                {/* 🟢 FIXED: Added name="images" attribute here as well */}
+                <input type="file" name="images" accept="image/*" onChange={handleImageChange} className="hidden" />
               </label>
             )}
           </div>
+
 
           <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 p-6 rounded-3xl shadow-xs space-y-4">
             <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white mb-2 text-left">Basic Details</h3>
@@ -240,7 +261,7 @@ const EditPropertyPage = () => {
             </div>
           </div>
 
-                   <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 p-6 rounded-3xl shadow-xs grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 p-6 rounded-3xl shadow-xs grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="text-left">
               <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1.5 ml-1">Listing Operation</label>
               <div className="relative">

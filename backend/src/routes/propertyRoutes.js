@@ -11,9 +11,13 @@ import {
   uploadPropertyImage,
   getRelatedProperties,
   getStats,
-  updatePropertyStatus
+  updatePropertyStatus,
+  submitPropertyForReview, 
+  approveProperty,         
+  rejectProperty          
 } from "../controllers/propertyController.js";
-import { protect } from "../middleware/authMiddleware.js";
+import { protect, adminOnly } from "../middleware/authMiddleware.js"; 
+import { enforcePropertyLimit } from "../middleware/planGuard.js";
 import upload from "../middleware/uploadMiddleware.js";
 import { createLead } from "../controllers/leadController.js";
 
@@ -26,10 +30,10 @@ router.get("/:id", getPropertyById);
 router.get("/:id/related", getRelatedProperties);
 router.post("/:id/contact", protect, createLead);
 
-
 router.post(
   "/", 
   protect, 
+  enforcePropertyLimit,
   [
     body("title").notEmpty(),
     body("description").notEmpty(),
@@ -54,6 +58,26 @@ router.post(
   protect,
   upload.array("images", 10), 
   uploadPropertyImage
+);
+
+router.put(
+  "/:id/submit",
+  protect,
+  submitPropertyForReview
+);
+
+router.put(
+  "/:id/approve",
+  protect,
+  adminOnly,
+  approveProperty
+);
+
+router.put(
+  "/:id/reject",
+  protect,
+  adminOnly,
+  rejectProperty
 );
 
 export default router;

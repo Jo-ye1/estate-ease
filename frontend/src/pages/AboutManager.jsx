@@ -3,11 +3,9 @@ import { Save, Plus, Trash2, Info, History, Users } from 'lucide-react';
 import api from "@/lib/api"; 
 
 export default function AboutManager() {
-  // --- 1. Form Core Navigation States ---
-  const [activeSubTab, setActiveSubTab] = useState("pillars");
+  const [activeSubTab, setActiveSubTab] = useState("history");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Unified State Model tracking all sub-tab fields collectively
   const [formData, setFormData] = useState({
     heading: "",
     subheading: "",
@@ -18,12 +16,10 @@ export default function AboutManager() {
     advisors: []
   });
 
-    // --- 2. Initial Mount: Load existing document data out of MongoDB Atlas ---
   useEffect(() => {
     const fetchCurrentCMSData = async () => {
       try {
-        // 👑 ROUTE PATH STRINGS ALIGNMENT FIX: Added /api prefix to match app.js!
-const { data } = await api.get("/admin-settings/about");
+        const { data } = await api.get("/admin-settings/about");
         if (data) {
           setFormData({
             heading: data.heading || "About the Estate Ease Engine",
@@ -31,12 +27,12 @@ const { data } = await api.get("/admin-settings/about");
             paragraph: data.paragraph || "",
             heroImage: data.heroImage || "",
             pillars: data.pillars || [],
-            history: data.historyTimeline || data.history || [],
+            history: data.history || [],
             advisors: data.advisors || []
           });
         }
       } catch (err) {
-        console.warn("Express backend offline, hydrating fallback options from local memory stacks.", err);
+        console.warn("Express backend offline, utilizing local storage fallback configurations.", err);
         setFormData({
           heading: localStorage.getItem('about_heading') || "About the Estate Ease Engine",
           subheading: localStorage.getItem('about_subheading') || "Redefining corporate real-estate ecosystems.",
@@ -51,11 +47,18 @@ const { data } = await api.get("/admin-settings/about");
     fetchCurrentCMSData();
   }, []);
 
-  // --- 3. Mutator Handlers for Dynamic Deep Field Arrays ---
+
+
   const updateArrayField = (sectionKey, index, fieldKey, incomingValue) => {
-    const updatedArray = [...formData[sectionKey]];
-    updatedArray[index][fieldKey] = incomingValue;
-    setFormData({ ...formData, [sectionKey]: updatedArray });
+    const freshSectionArray = [...formData[sectionKey]];
+    freshSectionArray[index] = {
+      ...freshSectionArray[index],
+      [fieldKey]: incomingValue
+    };
+    setFormData({
+      ...formData,
+      [sectionKey]: freshSectionArray
+    });
   };
 
   const handleMediaUpload = (sectionKey, index, e) => {
@@ -67,59 +70,64 @@ const { data } = await api.get("/admin-settings/about");
       if (index !== null && index !== undefined) {
         updateArrayField(sectionKey, index, "image", reader.result);
       } else {
-        setFormData({ ...formData, [sectionKey]: reader.result });
+        setFormData(prev => ({ ...prev, [sectionKey]: reader.result }));
       }
     };
     reader.readAsDataURL(file);
   };
 
-  // --- 4. Form Submission: Commit changes dynamically to MongoDB Atlas ---
-  // 👑 RESILIENT MERN SAVE CONTROLLER: Syncs to MongoDB with immediate Local Storage fallback protection
-  const handleFormSubmission = async (e) => {
-    e.preventDefault();
-    try {
-      setIsSubmitting(true);
-      
-      // 1. Always back up the values to Local Storage first so your pages update immediately!
-      localStorage.setItem('about_heading', formData.heading);
-      localStorage.setItem('about_subheading', formData.subheading);
-      localStorage.setItem('about_paragraph', formData.paragraph);
-      localStorage.setItem('about_hero_image', formData.heroImage);
-      localStorage.setItem('about_pillars', JSON.stringify(formData.pillars));
-      localStorage.setItem('about_history', JSON.stringify(formData.history));
-      localStorage.setItem('about_advisors', JSON.stringify(formData.advisors));
+const handleFormSubmission = async (e) => {
+  e.preventDefault();
+  try {
+    setIsSubmitting(true);
 
-      try {
-        // 2. Attempt to synchronize with your live MongoDB Atlas cloud database cluster
-        await api.put("/admin-settings/about", {
-          heading: formData.heading,
-          subheading: formData.subheading,
-          paragraph: formData.paragraph,
-          heroImage: formData.heroImage,
-          pillars: formData.pillars,
-          historyTimeline: formData.history, // 👑 THE MILESTONE FIX: Properly matches keys for your public page loop array
-          advisors: formData.advisors
-        });
-        
-        alert("CMS Parameters saved permanently to both MongoDB Atlas and local memory cache!");
-      } catch (networkErr) {
-        console.warn("Backend API route or body-parser limit unaligned. Local memory fallback took over successfully.", networkErr);
-        
-        // THE FAILSAFE ALERT: Let the user know local memory saved it so it doesn't feel broken!
-        alert("About Page layouts saved successfully to local memory cache! (Backend server sync pending route alignment)");
-      }
+    localStorage.setItem('about_heading', formData.heading);
+    localStorage.setItem('about_subheading', formData.subheading);
+    localStorage.setItem('about_paragraph', formData.paragraph);
+    localStorage.setItem('about_hero_image', formData.heroImage);
+    localStorage.setItem('about_pillars', JSON.stringify(formData.pillars));
+    localStorage.setItem('about_history', JSON.stringify(formData.history));
+    localStorage.setItem('about_advisors', JSON.stringify(formData.advisors));
 
-    } catch (err) {
-      console.error("CMS deployment structural failure:", err);
-      alert("Failed to save configuration parameters.");
-    } finally {
-      setIsSubmitting(false);
+    const { data } = await api.put("/admin-settings/about", {
+      heading: formData.heading,
+      subheading: formData.subheading,
+      paragraph: formData.paragraph,
+      heroImage: formData.heroImage,
+      pillars: formData.pillars,
+      advisors: formData.advisors,
+      history: formData.history
+    });
+    
+    if (data) {
+      setFormData(prev => ({
+        ...prev,
+        heading: data.heading || prev.heading,
+        subheading: data.subheading || prev.subheading,
+        paragraph: data.paragraph || prev.paragraph,
+        heroImage: data.heroImage || prev.heroImage,
+        pillars: data.pillars || [],
+        advisors: data.advisors || [],
+        history: data.history || []
+      }));
     }
-  };
+    
+    alert("CMS Parameters saved permanently to MongoDB Atlas!");
+  } catch (err) {
+    console.error("CMS deployment structural failure:", err);
+    alert("Failed to save configuration parameters.");
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+
+
 
   const cardBgClass = "bg-white dark:bg-[#0a101d] border border-slate-200/60 dark:border-slate-800/80 p-6 rounded-2xl text-left shadow-xs";
   const inputClass = "w-full bg-slate-50 dark:bg-[#111927] border border-slate-200 dark:border-gray-800 text-slate-900 dark:text-white rounded-xl p-3 text-sm font-medium outline-none focus:border-blue-500 transition-colors";
   const labelClass = "block text-xs font-bold tracking-wider uppercase text-slate-400 dark:text-slate-500 mb-1.5 text-left";
+
+
 
   return (
     <form onSubmit={handleFormSubmission} className="space-y-6 w-full">
@@ -215,68 +223,69 @@ const { data } = await api.get("/admin-settings/about");
         </div>
       )}
 
-            {/* --- SUB-TAB 2: CORPORATE HISTORY TIMELINE LAYOUT CONTROLLER --- */}
-      {activeSubTab === "history" && (
-        <div className="bg-white dark:bg-[#0a101d] border border-slate-200/60 dark:border-slate-800 p-6 rounded-2xl space-y-4 text-left">
-          <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
-            <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400">Corporate Timeline Development Logs</h4>
-            <button 
-              type="button" 
-              onClick={() => setFormData({...formData, history: [...formData.history, { year: "2026", title: "", body: "" }]})} 
-              className="text-xs font-black uppercase text-blue-600 dark:text-blue-500 bg-transparent border-0 cursor-pointer outline-none"
-            >
-              + Append History Event
-            </button>
+{activeSubTab === "history" && (
+  <div className="bg-white dark:bg-[#0a101d] border border-slate-200/60 dark:border-slate-800 p-6 rounded-2xl space-y-4 text-left">
+    <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+      <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400">Corporate Timeline Development Logs</h4>
+      <button 
+        type="button" 
+        onClick={() => setFormData({ ...formData, history: [{ year: "2026", title: "", body: "" }, ...formData.history] })} 
+        className="text-xs font-black uppercase text-blue-600 dark:text-blue-500 bg-transparent border-0 cursor-pointer outline-none"
+      >
+        + Append History Event
+      </button>
+    </div>
+    <div className="space-y-4">
+      {formData.history.map((event, idx) => (
+        <div key={idx} className="p-5 rounded-xl border border-slate-200 dark:border-gray-800 bg-slate-50/40 dark:bg-slate-950/10 text-left relative flex flex-col sm:flex-row gap-4 items-start">
+          <div className="w-full sm:w-24 shrink-0">
+            <label className={labelClass}>Year</label>
+            <input 
+              type="text" 
+              value={event.year || ""} 
+              onChange={e => updateArrayField("history", idx, "year", e.target.value)} 
+              className={inputClass + " text-center font-black text-blue-600 dark:text-blue-400 font-mono"} 
+              placeholder="e.g. 2026" 
+            />
           </div>
-          <div className="space-y-4">
-            {formData.history.map((event, idx) => (
-              <div key={idx} className="p-5 rounded-xl border border-slate-200 dark:border-gray-800 bg-slate-50/40 dark:bg-slate-950/10 text-left relative flex flex-col sm:flex-row gap-4 items-start">
-                <div className="w-full sm:w-24 shrink-0">
-                  <label className={labelClass}>Year</label>
-                  <input 
-                    type="text" 
-                    value={event.year || ""} 
-                    onChange={e => updateArrayField("history", idx, "year", e.target.value)} 
-                    className={inputClass + " text-center font-black text-blue-600 dark:text-blue-400 font-mono"} 
-                    placeholder="e.g. 2026" 
-                  />
-                </div>
-                <div className="flex-1 w-full space-y-3">
-                  <div className="flex justify-between items-center w-full gap-4">
-                    <div className="w-full">
-                      <label className={labelClass}>Event Title Headline</label>
-                      <input 
-                        type="text" 
-                        value={event.title || ""} 
-                        onChange={e => updateArrayField("history", idx, "title", e.target.value)} 
-                        className={inputClass} 
-                        placeholder="Milestone name" 
-                      />
-                    </div>
-                    <button 
-                      type="button" 
-                      onClick={() => setFormData({...formData, history: formData.history.filter((_, i) => i !== idx)})} 
-                      className="mt-6 text-xs text-slate-400 hover:text-red-500 font-bold border-0 bg-transparent cursor-pointer outline-none transition-colors shrink-0"
-                    >
-                      Purge
-                    </button>
-                  </div>
-                  <div>
-                    <label className={labelClass}>Event Long Description Narrative</label>
-                    <textarea 
-                      rows="2" 
-                      value={event.body || event.text || ""} 
-                      onChange={e => updateArrayField("history", idx, "body", e.target.value)} 
-                      className={inputClass + " text-xs resize-none leading-relaxed"} 
-                      placeholder="What occurred during this operational cycle interval?" 
-                    />
-                  </div>
-                </div>
+          <div className="flex-1 w-full space-y-3">
+            <div className="flex justify-between items-center w-full gap-4">
+              <div className="w-full">
+                <label className={labelClass}>Event Title Headline</label>
+                <input 
+                  type="text" 
+                  value={event.title || ""} 
+                  onChange={e => updateArrayField("history", idx, "title", e.target.value)} 
+                  className={inputClass} 
+                  placeholder="Milestone name" 
+                />
               </div>
-            ))}
+              <button 
+                type="button" 
+                onClick={() => setFormData({ ...formData, history: formData.history.filter((_, i) => i !== idx) })} 
+                className="mt-6 text-xs text-slate-400 hover:text-red-500 font-bold border-0 bg-transparent cursor-pointer outline-none transition-colors shrink-0"
+              >
+                Purge
+              </button>
+            </div>
+            <div>
+              <label className={labelClass}>Event Long Description Narrative</label>
+              <textarea 
+                rows="2" 
+                value={event.body || ""} 
+                onChange={e => updateArrayField("history", idx, "body", e.target.value)} 
+                className={inputClass + " text-xs resize-none leading-relaxed"} 
+                placeholder="What occurred during this operational cycle interval?" 
+              />
+            </div>
           </div>
         </div>
-      )}
+      ))}
+    </div>
+  </div>
+)}
+
+
 
       {/* --- SUB-TAB 3: EXPERT ADVISORY COUNCIL CONTROLLER --- */}
       {activeSubTab === "council" && (

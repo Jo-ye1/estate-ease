@@ -2,10 +2,10 @@ import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 import mongoose from "mongoose";
+import http from "http";
 import app from "../app.js";
+import { initSocket } from "./socket/socket.js";
 
-
-// Load .env
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -15,11 +15,8 @@ dotenv.config({
 
 const PORT = process.env.PORT || 5000;
 
-// MongoDB connection events
 mongoose.connection.on("connected", () => {
-  console.log(
-    `MongoDB connected: ${mongoose.connection.host}`
-  );
+  console.log(`MongoDB connected: ${mongoose.connection.host}`);
 });
 
 mongoose.connection.on("error", (err) => {
@@ -40,15 +37,15 @@ const startServer = async () => {
 
     await mongoose.connect(mongoUri);
 
-    app.listen(PORT, () => {
-      console.log(
-        `Estate Ease API running on port ${PORT}`
-      );
+    const server = http.createServer(app);
+
+    initSocket(server);
+
+    server.listen(PORT, () => {
+      console.log(`Estate Ease API + Socket running on port ${PORT}`);
     });
   } catch (error) {
-    console.error(
-      `Server startup failed: ${error.message}`
-    );
+    console.error(`Server startup failed: ${error.message}`);
     process.exit(1);
   }
 };

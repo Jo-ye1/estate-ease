@@ -24,22 +24,30 @@ const HomeCmsSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 
-// ==========================================
-// EXISTING EXTENDED CMS SCHEMAS (Unchanged)
-// ==========================================
-
-// Schema for About Page Sections
 const AboutSchema = new mongoose.Schema({
   heading: { type: String, default: "About the Estate Ease Engine" },
   subheading: { type: String, default: "" },
   paragraph: { type: String, default: "" },
-  heroImage: { type: String, default: "" }, 
+  heroImage: { type: String, default: "" },
   pillars: [{ title: String, text: String }],
-  historyTimeline: [{ year: String, title: String, text: String }], // Unified history tracker
-  advisors: [{ name: String, role: String, tag: String, linkedin: String, image: String }]
+  history: [
+    {
+      year: { type: String, default: "" },
+      title: { type: String, default: "" },
+      body: { type: String, default: "" }
+    }
+  ],
+  advisors: [
+    {
+      name: String,
+      role: String,
+      tag: String,
+      linkedin: String,
+      image: String
+    }
+  ]
 }, { timestamps: true });
 
-// Schema for Blog Journal Page 
 const BlogSchema = new mongoose.Schema({
   journalTitle: { type: String, default: "The Estate Ease Journal" },
   journalSub: { type: String, default: "" },
@@ -49,7 +57,9 @@ const BlogSchema = new mongoose.Schema({
     category: String,
     date: String,
     readTime: String,
-    excerpt: String
+    excerpt: String,
+    content: String, // 🟢 Added to store detailed article copy details safely
+    image: String    // 🟢 Added to preserve cover thumbnail paths securely
   }]
 }, { timestamps: true });
 
