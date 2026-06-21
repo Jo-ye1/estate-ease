@@ -8,7 +8,7 @@ import ContactManager from './ContactManager';
 import TermsManager from './TermsManager';
 import FaqManager from './FaqManager';
 import SocialsManager from './SocialsManager'; 
-import WorkflowManager from './WorkflowManager'; // 🟢 1. IMPORTED YOUR NEW WORKFLOW MANAGER NODE
+import WorkflowManager from './WorkflowManager'; 
 
 export default function AdminSettingsDashboard() {
   const [activeTab, setActiveTab] = useState('about');

@@ -1,23 +1,27 @@
-import { PLANS } from "../config/plans.js";
+import SubscriptionPlan from "../models/SubscriptionPlan.js";
+import Property from "../models/Property.js";
+import Subscription from "../models/Subscription.js";
 import { getActiveSubscription } from "../utils/subscriptionHelper.js";
-import Property from "../models/Property.js"; // 🟢 Added to allow counting properties
-import Subscription from "../models/Subscription.js"; // 🟢 Added to query subscriptions directly
 
 export const checkPlanLimit = (feature) => {
   return async (req, res, next) => {
     try {
       const sub = await getActiveSubscription(req.user._id);
-      const plan = PLANS[sub.plan || "free"];
+      const planName = sub?.plan || "Free";
+      
+      const planConfig = await SubscriptionPlan.findOne({ 
+        name: { $regex: new RegExp(`^${planName}$`, "i") } 
+      });
 
-      if (plan[feature] === false) {
+      if (!planConfig || planConfig[feature] === false) {
         return res.status(403).json({
           message: "Upgrade required for this feature",
           feature,
-          currentPlan: sub.plan,
+          currentPlan: planName,
         });
       }
 
-      req.plan = plan;
+      req.plan = planConfig;
       req.subscription = sub;
 
       next();
@@ -33,19 +37,20 @@ export const enforcePropertyLimit = async (req, res, next) => {
       user: req.user._id,
     });
 
-    const plan = PLANS[sub?.plan || "free"];
+    const planName = sub?.plan || "Free";
+    const planConfig = await SubscriptionPlan.findOne({ 
+      name: { $regex: new RegExp(`^${planName}$`, "i") } 
+    });
 
+    const maxProperties = planConfig ? planConfig.listingLimit : 3;
     const count = await Property.countDocuments({
       owner: req.user._id,
     });
 
-    if (
-      plan.maxProperties !== -1 &&
-      count >= plan.maxProperties
-    ) {
+    if (maxProperties !== -1 && count >= maxProperties) {
       return res.status(403).json({
         message: "Property limit reached. Upgrade plan.",
-        limit: plan.maxProperties,
+        limit: maxProperties,
         current: count,
       });
     }

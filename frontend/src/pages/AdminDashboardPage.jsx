@@ -1,6 +1,7 @@
+import { useNavigate } from "react-router-dom";
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ShieldAlert, Users, Layers } from "lucide-react";
+import { ShieldAlert, Users, User, Layers, History, ShieldCheck, Terminal } from "lucide-react";
 import Navbar from "@/components/home/Navbar";
 import axios from "axios";
 import {
@@ -20,6 +21,17 @@ import {
 } from "recharts";
 
 export default function AdminDashboardPage() {
+  const navigate = useNavigate();
+
+  const [user, setUser] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem("user");
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
   const [dashboardData, setDashboardData] = useState({
     users: [],
     metrics: {},
@@ -31,6 +43,8 @@ export default function AdminDashboardPage() {
     leadFunnel: [],
   });
   const [loading, setLoading] = useState(true);
+
+  const [auditLogs, setAuditLogs] = useState([]);
 
   const token = localStorage.getItem("token");
 
@@ -47,6 +61,11 @@ export default function AdminDashboardPage() {
         }
       );
 
+      const auditRes = await axios.get("http://localhost:5000/api/audit", {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+      });
+      setAuditLogs(Array.isArray(auditRes.data?.logs) ? auditRes.data.logs : auditRes.data || []);
+
       setDashboardData(response.data);
     } catch (error) {
       console.error("Failed to fetch admin dashboard users:", error);
@@ -56,6 +75,10 @@ export default function AdminDashboardPage() {
   };
 
   useEffect(() => {
+    if (!token) {
+      navigate("/login");
+      return;
+    }
     fetchAllUsers();
   }, []);
 
@@ -257,6 +280,7 @@ export default function AdminDashboardPage() {
         {propertyGrowthData.reduce((acc, curr) => acc + (curr.properties || 0), 0)}
       </span>
     </div>
+  
     <ResponsiveContainer width="100%" height={230}>
       <BarChart data={propertyGrowthData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-800" />
@@ -452,7 +476,155 @@ export default function AdminDashboardPage() {
 </div>
 
 
+        {/* 🟢 LIVE AUDIT LOG TIMELINE GRID INSERT */}
+        <section className="bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800/80 rounded-2xl p-6 shadow-md mb-8 transition-colors">
+          <div className="flex items-center gap-2 mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
+            <History size={16} className="text-blue-500" />
+            <h2 className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+              Live System Audit Log Timeline
+            </h2>
+          </div>
 
+          {auditLogs.length === 0 ? (
+            <div className="text-center py-10 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+              No recent administrative actions recorded.
+            </div>
+          ) : (
+            <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
+              {auditLogs.map((log) => {
+                const isApproval = log.action === "PROPERTY_APPROVED";
+                const isRejection = log.action === "PROPERTY_REJECTED";
+
+                return (
+                  <div key={log._id} className="flex items-start gap-4 p-3 bg-slate-50/50 dark:bg-[#090f1c] rounded-xl border border-slate-200/60 dark:border-slate-800/40 hover:border-slate-300 dark:hover:border-slate-700 transition-colors">
+                    <div className="mt-0.5">
+                      <History size={14} className={isApproval ? "text-emerald-500" : isRejection ? "text-rose-500" : "text-blue-500"} />
+                    </div>
+                    
+                    <div className="flex-1 flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                      <div>
+                        <span className="text-xs font-black text-slate-800 dark:text-slate-300">{log.actor?.name || "System Admin"}</span>
+                        <span className="text-xs text-slate-400 dark:text-slate-500 mx-2">executed</span>
+                        <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                          isApproval ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" :
+                          isRejection ? "bg-rose-500/10 text-rose-600 dark:text-rose-400" : "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                        }`}>
+                          {log.action}
+                        </span>
+                        <p className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-1">{log.message || `${log.targetType} modified`}</p>
+                      </div>
+                      
+                      <span className="text-[11px] font-bold text-slate-400 dark:text-slate-600 shrink-0">
+                        {log.createdAt ? new Date(log.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "N/A"}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+{/* 🟢 EXECUTIVE SYSTEM SHORTCUT MODULES INSERT */}
+          {/* 🛡️ COMPLIANCE CONTROLS GATEWAYS RIBBON BLOCK */}
+          <div className="flex flex-wrap gap-3 mt-4">
+            <Link
+              to="/admin/kyc-verification"
+              className="px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all cursor-pointer inline-flex items-center gap-2"
+            >
+              <ShieldCheck size={14} />
+              Launch KYC Verification Desk
+            </Link>
+            
+            {user?.role === "super_admin" && (
+              <Link
+                to="/admin/audit-logs"
+                className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 font-bold text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer inline-flex items-center gap-2"
+              >
+                <Terminal size={14} />
+                Inspect Security Audit Ledger
+              </Link>
+            )}
+          </div>
+
+
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 my-6">
+          <button
+            onClick={() => navigate("/admin/properties-control")}
+            className="flex items-center justify-between p-4 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-xl transition-all text-left cursor-pointer group shadow-2xs"
+          >
+            <div>
+              <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 group-hover:text-blue-400 transition-colors">
+                Global Property Moderation
+              </h4>
+              <p className="text-[11px] mt-1 text-slate-700 dark:text-slate-300 leading-normal">
+                Approve pending listings, manage flagged posts, or delete items globally.
+              </p>
+            </div>
+            <span className="text-slate-400 dark:text-slate-600 group-hover:text-blue-500 font-bold transition-colors">→</span>
+          </button>
+
+          <button
+            onClick={() => navigate("/admin/subscriptions")}
+            className="flex items-center justify-between p-4 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-xl transition-all text-left cursor-pointer group shadow-2xs"
+          >
+            <div>
+              <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 group-hover:text-purple-400 transition-colors">
+                Manage User Subscriptions
+              </h4>
+              <p className="text-[11px] mt-1 text-slate-700 dark:text-slate-300 leading-normal">
+                Review active subscriber tiers, license keys, and account thresholds.
+              </p>
+            </div>
+            <span className="text-slate-400 dark:text-slate-600 group-hover:text-purple-500 font-bold transition-colors">→</span>
+          </button>
+
+          <button
+            onClick={() => navigate("/admin/billing")}
+            className="flex items-center justify-between p-4 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-xl transition-all text-left cursor-pointer group shadow-2xs"
+          >
+            <div>
+              <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 group-hover:text-emerald-400 transition-colors">
+                Platform Financial Revenue
+              </h4>
+              <p className="text-[11px] mt-1 text-slate-700 dark:text-slate-300 leading-normal">
+                Audit macro company income intake margins and transactional receipts.
+              </p>
+            </div>
+            <span className="text-slate-400 dark:text-slate-600 group-hover:text-emerald-400 font-bold transition-colors">→</span>
+          </button>
+
+          <button
+            onClick={() => navigate("/admin/system-health")}
+            className="flex items-center justify-between p-4 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-xl transition-all text-left cursor-pointer group shadow-2xs"
+          >
+            <div>
+              <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 group-hover:text-amber-400 transition-colors">
+                System Infrastructure Health
+              </h4>
+              <p className="text-[11px] mt-1 text-slate-700 dark:text-slate-300 leading-normal">
+                Monitor MongoDB cluster size, API server throughput, and fault metrics.
+              </p>
+            </div>
+            <span className="text-slate-400 dark:text-slate-600 group-hover:text-amber-500 font-bold transition-colors">→</span>
+          </button>
+
+          <button
+            onClick={() => navigate("/admin/matrix-settings")}
+            className="flex items-center justify-between p-4 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-xl transition-all text-left cursor-pointer group shadow-2xs"
+          >
+            <div>
+              <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 group-hover:text-purple-400 transition-colors">
+                Fix Front Landing Pages
+              </h4>
+              <p className="text-[11px] mt-1 text-slate-700 dark:text-slate-300 leading-normal">
+                Configure layout text assets, tweak hero backgrounds, and modify global platform widgets.
+              </p>
+            </div>
+            <span className="text-slate-400 dark:text-slate-600 group-hover:text-purple-500 font-bold transition-colors">→</span>
+          </button>
+        </div>
 
 
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 md:p-6">
@@ -508,6 +680,8 @@ export default function AdminDashboardPage() {
                             <option value="user" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">User</option>
                             <option value="seller" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">Seller</option>
                             <option value="admin" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">Admin</option>
+                            <option value="agent" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">Agent</option>
+                            <option value="agency" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">Agency</option>
                           </select>
                         )}
                       </td>

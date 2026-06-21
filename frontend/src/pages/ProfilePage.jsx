@@ -26,6 +26,7 @@ import Navbar from "@/components/home/Navbar";
 import api from "../lib/api";
 import AddReviewForm from "../components/home/AddReviewForm";
 import { Eye, EyeOff } from "lucide-react";
+import KycSubmissionForm from "./KycSubmissionForm"; // Adjust path to match your folder
 
 
 export default function ProfilePage() {
@@ -359,7 +360,6 @@ export default function ProfilePage() {
         {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
       </button>
     </div>
-
     <div className="relative w-full h-11">
       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
       <input
@@ -390,10 +390,18 @@ export default function ProfilePage() {
     </button>
   </form>
 </div>
+
+{/* ✅ CRASH FIXED: Set onRefresh to your actual function name or an empty fallback function () => {} */}
+<KycSubmissionForm 
+  currentStatus={user?.verificationStatus || "unverified"} 
+  rejectionReason={user?.kycRejectionReason || ""}
+  onRefresh={typeof fetchUser === "function" ? fetchUser : () => {}} 
+/>
+
 </div>
 
 
-                    {/* RIGHT CONTAINER PACK: TAB PANEL VISIBILITY COLUMN */}
+          {/* RIGHT CONTAINER PACK: TAB PANEL VISIBILITY COLUMN */}
           <div className="lg:col-span-8 space-y-6 w-full text-left">
             <div className="flex gap-2 border-b border-slate-200 dark:border-slate-800/80 pb-3">
               <button 
@@ -413,7 +421,8 @@ export default function ProfilePage() {
                 <Heart size={14} />
                 <span>Your Bookmarks</span>
               </button>
-            </div>
+ </div>
+
 
             {tabLoading ? (
               <div className="flex justify-center py-20 w-full">

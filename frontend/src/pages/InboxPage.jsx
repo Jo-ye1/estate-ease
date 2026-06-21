@@ -4,7 +4,6 @@ import Navbar from "@/components/home/Navbar";
 import ChatWindow from "@/components/inbox/ChatWindow";
 import { socket } from "@/lib/socket";
 
-
 const INBOX_API_URL = "http://localhost:5000/api/messages";
 
 const getInboxAuthHeaders = () => ({
@@ -15,7 +14,6 @@ const getConversations = async () => {
   const res = await axios.get(INBOX_API_URL, {
     headers: getInboxAuthHeaders(),
   });
-
   return res.data;
 };
 
@@ -34,13 +32,13 @@ export default function InboxPage() {
   const loadConversations = async () => {
     try {
       const data = await getConversations();
-
       const safeData = Array.isArray(data)
         ? data
         : data?.conversations || [];
 
       setConversations(safeData);
 
+      // 🟢 REPAIRED: Correctly pick the first conversation item object instead of assigning the full array block
       if (!selected && safeData.length > 0) {
         setSelected(safeData[0]);
       }
@@ -84,10 +82,10 @@ export default function InboxPage() {
       );
     };
 
-    socket.on("new-message", handleNewMessage);
+    socket.on("newMessage", handleNewMessage);
 
     return () => {
-      socket.off("new-message", handleNewMessage);
+      socket.off("newMessage", handleNewMessage);
     };
   }, [user?._id]);
 
@@ -105,7 +103,7 @@ export default function InboxPage() {
 
           <div className="flex-1 overflow-y-auto">
             {conversations.length === 0 ? (
-              <div className="text-center py-20 text-xs font-bold">
+              <div className="text-center py-20 text-slate-400 text-xs font-bold uppercase tracking-wider">
                 No threads found
               </div>
             ) : (
@@ -128,20 +126,18 @@ export default function InboxPage() {
                   <button
                     key={conv._id}
                     onClick={() => setSelected(conv)}
-                    className={`w-full text-left p-4 ${
+                    className={`w-full text-left p-4 transition-colors ${
                       isSelected
-                        ? "bg-slate-100 dark:bg-slate-800"
+                        ? "bg-slate-100 dark:bg-slate-800 border-l-4 border-blue-600"
                         : "hover:bg-slate-50 dark:hover:bg-slate-950"
                     }`}
                   >
-                    <h4 className="font-bold">
-                      {other?.name ||
-                        "Property Inquiry"}
+                    <h4 className="font-bold text-slate-800 dark:text-slate-200">
+                      {other?.name || "Property Inquiry"}
                     </h4>
 
-                    <p className="text-xs truncate">
-                      {conv?.lastMessage ||
-                        "No messages"}
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-1">
+                      {conv?.lastMessage || "No messages"}
                     </p>
                   </button>
                 );
@@ -157,8 +153,8 @@ export default function InboxPage() {
               currentUser={user}
             />
           ) : (
-            <div className="flex h-full items-center justify-center border rounded-2xl">
-              Select a conversation
+            <div className="flex h-full items-center justify-center border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-400 text-xs font-bold uppercase tracking-wider rounded-2xl">
+              Select a conversation thread to stream...
             </div>
           )}
         </div>

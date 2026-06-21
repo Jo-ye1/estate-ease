@@ -1,8 +1,7 @@
 import Conversation from "../models/Conversation.js";
 import Message from "../models/Message.js";
-import createNotification from "../utils/createNotification.js";
+import { createNotification } from "../utils/createNotification.js";
 import { getIO, getReceiverSocket } from "../socket/socket.js";
-
 
 export const getConversations = async (
   req,
@@ -75,9 +74,7 @@ export const sendMessage = async (req, res) => {
   try {
     const { text } = req.body;
 
-    const conversation = await Conversation.findById(
-      req.params.id
-    );
+    const conversation = await Conversation.findById(req.params.id);
 
     if (!conversation) {
       return res.status(404).json({
@@ -85,11 +82,9 @@ export const sendMessage = async (req, res) => {
       });
     }
 
-    const isParticipant =
-      conversation.participants.some(
-        (p) =>
-          p.toString() === req.user._id.toString()
-      );
+    const isParticipant = conversation.participants.some(
+      (p) => p.toString() === req.user._id.toString()
+    );
 
     if (!isParticipant) {
       return res.status(401).json({
@@ -97,11 +92,9 @@ export const sendMessage = async (req, res) => {
       });
     }
 
-    const receiver =
-      conversation.participants.find(
-        (p) =>
-          p.toString() !== req.user._id.toString()
-      );
+    const receiver = conversation.participants.find(
+      (p) => p.toString() !== req.user._id.toString()
+    );
 
     const message = await Message.create({
       conversation: conversation._id,
@@ -116,28 +109,29 @@ export const sendMessage = async (req, res) => {
 
     await conversation.save();
 
-    const populatedMessage =
-      await Message.findById(message._id)
-        .populate("sender", "name email avatar");
+    const populatedMessage = await Message.findById(message._id)
+      .populate("sender", "name email avatar");
 
     if (receiver) {
-      await createNotification({
-        user: receiver,
-        type: "MESSAGE_RECEIVED",
-        title: "New Message",
-        message: text,
-        referenceId: message._id,
-      });
+      try {
+        await createNotification({
+          recipient: messageReceiverId,
+          user: receiver,
+          sender: req.user._id,
+          type: "message",
+          title: "New Message",
+          message: text,
+          relatedId: message._id,
+          relatedType: "Message",
+        });
+      } catch (notifError) {
+        console.error("Notification logging failed, suppressing to continue chat thread creation:", notifError.message);
+      }
 
-      const receiverSocket = getReceiverSocket(
-        receiver.toString()
-      );
+      const receiverSocket = getReceiverSocket(receiver.toString());
 
       if (receiverSocket) {
-        getIO().to(receiverSocket).emit(
-          "receive_message",
-          populatedMessage
-        );
+        getIO().to(receiverSocket).emit("newMessage", populatedMessage);
       }
     }
 
@@ -151,9 +145,6 @@ export const sendMessage = async (req, res) => {
     });
   }
 };
-
-
-
 
 export const markMessagesRead = async (
   req,

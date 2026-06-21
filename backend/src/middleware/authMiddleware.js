@@ -1,22 +1,15 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
-export const protect = async (
-  req,
-  res,
-  next
-) => {
+export const protect = async (req, res, next) => {
   try {
     let token;
 
     if (
       req.headers.authorization &&
-      req.headers.authorization.startsWith(
-        "Bearer "
-      )
+      req.headers.authorization.startsWith("Bearer ")
     ) {
-      token =
-        req.headers.authorization.split(" ")[1];
+      token = req.headers.authorization.split(" ")[1];
     }
 
     if (!token) {
@@ -25,14 +18,9 @@ export const protect = async (
       });
     }
 
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET
-    );
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const user = await User.findById(
-      decoded.id
-    ).select("-password");
+    const user = await User.findById(decoded.id).select("-password");
 
     if (!user) {
       return res.status(401).json({
@@ -41,7 +29,6 @@ export const protect = async (
     }
 
     req.user = user;
-
     next();
   } catch (error) {
     res.status(401).json({
@@ -50,7 +37,6 @@ export const protect = async (
   }
 };
 
-// Add this at the very bottom of src/middleware/authMiddleware.js
 export const adminOnly = (req, res, next) => {
   if (req.user && (req.user.role === "admin" || req.user.role === "super_admin")) {
     next();
@@ -59,4 +45,23 @@ export const adminOnly = (req, res, next) => {
       message: "Access denied. Admin authorization required."
     });
   }
+};
+
+export const authorizeRoles = (...allowedRoles) => {
+  return (req, res, next) => {
+    if (!req.user || !req.user.role) {
+      return res.status(401).json({ message: "Unauthorized: Missing authentication profile." });
+    }
+
+    const currentRole = String(req.user.role).toLowerCase().trim();
+    const normalizedRoles = allowedRoles.map((r) => String(r).toLowerCase().trim());
+
+    if (!normalizedRoles.includes(currentRole)) {
+      return res.status(403).json({
+        message: `Forbidden: Access denied for your user role tier.`
+      });
+    }
+
+    next();
+  };
 };

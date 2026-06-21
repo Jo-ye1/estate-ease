@@ -91,9 +91,10 @@ const propertySchema = new mongoose.Schema(
         "sold",
         "closed",
         "archived",
-        "rejected"
+        "rejected",
+        "expired"
       ],
-      default: "draft",
+      default: "pending",
     },
 
     images: {
@@ -136,6 +137,49 @@ const propertySchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+
+    expiresAt: {
+      type: Date,
+      default: null,
+    },
+
+    isExpired: {
+      type: Boolean,
+      default: false,
+    },
+
+    renewalStatus: {
+      type: String,
+      enum: ["active", "due", "expired"],
+      default: "active",
+    },
+
+    lastRenewalDate: {
+      type: Date,
+      default: null,
+    },
+    reminderLogs: {
+      type: [String],
+      default: [], 
+    },
+
+        // 🟢 MODULE 3: TEAM WORKLOAD PROPERTY DELEGATION FIELDS
+    assignedAgent: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null
+    },
+    assignedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null
+    },
+    assignedAt: {
+      type: Date,
+      default: null
+    },
+
+    
   },
   {
     timestamps: true,

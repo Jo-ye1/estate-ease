@@ -1,58 +1,50 @@
 import mongoose from "mongoose";
 
-const NotificationSchema = new mongoose.Schema(
-  {
-    recipient: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
+const NotificationSchema =
+  new mongoose.Schema(
+    {
+      user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
+      },
 
-    sender: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
+      type: {
+        type: String,
+        enum: [
+          "lead",
+          "property",
+          "billing",
+          "subscription",
+          "system",
+        ],
+        default: "system",
+      },
 
-    type: {
-      type: String,
-      enum: [
-        "NEW_LEAD",
-        "PROPERTY_APPROVED",
-        "PROPERTY_REJECTED",
-        "ROLE_CHANGED",
-        "SYSTEM_ALERT",
-        "LEAD_UPDATED",
-      ],
-    },
+      title: {
+        type: String,
+        required: true,
+      },
 
-    title: {
-      type: String,
-      required: true,
-    },
+      message: {
+        type: String,
+        required: true,
+      },
 
-    message: {
-      type: String,
-      required: true,
-    },
+      isRead: {
+        type: Boolean,
+        default: false,
+      },
 
-    relatedId: {
-      type: mongoose.Schema.Types.ObjectId,
-      default: null,
+      metadata: {
+        type: Object,
+        default: {},
+      },
     },
-
-    relatedType: {
-      type: String,
-      default: "",
-    },
-
-    isRead: {
-      type: Boolean,
-      default: false,
-    },
-  },
-  { timestamps: true }
-);
+    {
+      timestamps: true,
+    }
+  );
 
 export default mongoose.model(
   "Notification",

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { UploadCloud, FileText, MapPin, Bed, Bath, Maximize, DollarSign, Calendar, Sliders, ChevronLeft } from "lucide-react";
 import { createProperty, uploadPropertyImage } from "../services/propertyService";
@@ -10,6 +10,8 @@ const AddPropertyPage = () => {
   const [loading, setLoading] = useState(false);
   const [image, setImage] = useState(null);
   const [previewUrl, setPreviewUrl] = useState("");
+  const [priceSuggestion, setPriceSuggestion] =
+  useState(null);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -35,7 +37,57 @@ const AddPropertyPage = () => {
     }));
   };
 
-    
+    const fetchPriceSuggestion =
+  async (
+    location,
+    propertyCategory,
+    bedrooms,
+    listingType
+  ) => {
+    try {
+      if (
+        !location ||
+        !propertyCategory ||
+        !bedrooms ||
+        !listingType
+      ) {
+        return;
+      }
+
+      const token =
+        localStorage.getItem("token");
+
+      const response = await fetch(
+        "http://localhost:5000/api/intelligence/price-suggestion",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            location,
+            propertyCategory,
+            bedrooms: Number(bedrooms),
+            listingType,
+          }),
+        }
+      );
+
+      const data =
+        await response.json();
+
+      setPriceSuggestion(data);
+    } catch (error) {
+      console.error(
+        "Price suggestion failed:",
+        error
+      );
+    }
+  };
+
+
     const handleImageChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -93,6 +145,20 @@ const AddPropertyPage = () => {
     }
   };
 
+
+useEffect(() => {
+  fetchPriceSuggestion(
+    formData.location,
+    formData.propertyCategory,
+    formData.bedrooms,
+    formData.listingType
+  );
+}, [
+  formData.location,
+  formData.propertyCategory,
+  formData.bedrooms,
+  formData.listingType,
+]);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 transition-colors duration-200 pb-20">
@@ -200,7 +266,40 @@ const AddPropertyPage = () => {
 
             <div className="text-left">
               <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1.5 ml-1">Financial Parameters</label>
-              
+
+{priceSuggestion?.suggestedPrice && (
+  <div className="mb-4 p-4 rounded-2xl border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/20">
+    <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 mb-2">
+      Smart Pricing Insight
+    </p>
+
+    <div className="space-y-1 text-xs font-bold">
+      <p>
+        Suggested Price:
+        <span className="text-emerald-600 ml-2">
+          $
+          {priceSuggestion.suggestedPrice.toLocaleString()}
+        </span>
+      </p>
+
+      <p>
+        Market Average:
+        <span className="ml-2">
+          $
+          {priceSuggestion.marketAverage?.toLocaleString()}
+        </span>
+      </p>
+
+      <p>
+        Competition:
+        <span className="ml-2">
+          {priceSuggestion.competitionCount}
+        </span>
+      </p>
+    </div>
+  </div>
+)}
+
                             {formData.listingType === "sale" && (
                 <div className="relative">
                   <DollarSign className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />

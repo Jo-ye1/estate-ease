@@ -1,15 +1,16 @@
 import Notification from "../models/Notification.js";
+import mongoose from "mongoose";
 
-export const getMyNotifications = async (
-  req,
-  res
-) => {
+export const getMyNotifications = async (req, res) => {
   try {
     const notifications = await Notification.find({
-      recipient: req.user._id,
-    })
-      .sort({ createdAt: -1 })
-      .populate("sender", "name");
+      $or: [
+        { user: req.user._id },
+        { recipient: req.user._id }
+      ]
+    }).sort({
+      createdAt: -1,
+    });
 
     res.json(notifications);
   } catch (error) {
@@ -19,27 +20,17 @@ export const getMyNotifications = async (
   }
 };
 
-export const markNotificationRead = async (
-  req,
-  res
-) => {
+export const getUnreadCount = async (req, res) => {
   try {
-    const notification =
-      await Notification.findById(req.params.id);
-
-    if (!notification) {
-      return res.status(404).json({
-        message: "Notification not found",
-      });
-    }
-
-    notification.isRead = true;
-
-    await notification.save();
-
-    res.json({
-      success: true,
+    const count = await Notification.countDocuments({
+      $or: [
+        { user: req.user._id },
+        { recipient: req.user._id }
+      ],
+      isRead: false,
     });
+
+    res.json({ count });
   } catch (error) {
     res.status(500).json({
       message: error.message,
@@ -47,20 +38,47 @@ export const markNotificationRead = async (
   }
 };
 
-// 🟢 ADD TO THE BOTTOM OF src/controllers/notificationController.js
-
-export const getUnreadCount = async (
-  req,
-  res
-) => {
+export const markAllNotificationsAsRead = async (req, res) => {
   try {
-    const count =
-      await Notification.countDocuments({
-        recipient: req.user._id,
-        isRead: false,
-      });
+    const result = await Notification.updateMany(
+      {
+        $or: [
+          { user: req.user._id },
+          { recipient: req.user._id }
+        ],
+        isRead: false
+      },
+      { $set: { isRead: true } }
+    );
 
-    res.json({ count });
+    res.json({
+      success: true,
+      message: "All notifications marked as read.",
+      modifiedCount: result.modifiedCount
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const markNotificationRead = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const notification = await Notification.findById(id);
+    if (!notification) {
+      return res.status(404).json({ message: "Notification not found" });
+    }
+
+    const ownerId = notification.user || notification.recipient;
+    if (ownerId && ownerId.toString() !== req.user._id.toString()) {
+      return res.status(401).json({ message: "Unauthorized access block" });
+    }
+
+    notification.isRead = true;
+    await notification.save();
+
+    res.json({ success: true, notification });
   } catch (error) {
     res.status(500).json({
       message: error.message,

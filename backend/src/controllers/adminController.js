@@ -307,8 +307,12 @@ export const updateUserRole = async (req, res) => {
 
     await user.save();
 
-    // 🟢 AUDIT HOOK F: Log the user role change after saving the update
-    await createAuditLog({
+    res.json({
+      success: true,
+      user,
+    });
+
+    createAuditLog({
       actor: req.user._id,
       action: "ROLE_CHANGED",
       targetType: "User",
@@ -316,10 +320,9 @@ export const updateUserRole = async (req, res) => {
       metadata: {
         newRole: user.role,
       },
-    });
+    }).catch((err) => console.error("Audit log background error:", err));
 
-    // 🟢 NOTIFICATION HOOK: Inform the user directly that their role has changed
-    await createNotification({
+    createNotification({
       recipient: user._id,
       sender: req.user._id,
       type: "ROLE_CHANGED",
@@ -327,18 +330,15 @@ export const updateUserRole = async (req, res) => {
       message: `Your role is now ${role}`,
       relatedId: user._id,
       relatedType: "User",
-    });
+    }).catch((err) => console.error("Notification background error:", err));
 
-    res.json({
-      success: true,
-      user,
-    });
   } catch (error) {
     res.status(500).json({
       message: error.message,
     });
   }
 };
+
 
 
 
@@ -417,3 +417,16 @@ export const getSuperAdminAnalytics = async (req, res) => {
   }
 };
 
+export const getSystemTelemetryMetrics = async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      status: "healthy",
+      uptime: process.uptime(),
+      memoryUsage: process.memoryUsage(),
+      timestamp: new Date()
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

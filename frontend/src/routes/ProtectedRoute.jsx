@@ -9,10 +9,8 @@ export default function ProtectedRoute({
   const { user, loading, token } = useAuth();
   const location = useLocation();
 
-  // wait for auth restore
   if (loading) return null;
 
-  // not logged in
   if (!token || !user) {
     return (
       <Navigate
@@ -31,12 +29,11 @@ export default function ProtectedRoute({
     String(role).toLowerCase().trim()
   );
 
-  // role blocked
   if (
     normalizedAllowedRoles.length > 0 &&
     !normalizedAllowedRoles.includes(resolvedRole)
   ) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return children;

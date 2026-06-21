@@ -59,13 +59,38 @@ export default function LoginPage() {
       if (finalRoleString === "admin") {
         setBanner({ text: `Access Granted! Welcome back Master Admin: ${userName}.`, type: "success" });
         setTimeout(() => navigate("/admin-dashboard"), 1500); 
-      } else if (finalRoleString === "seller" || finalRoleString === "broker") {
-        setBanner({ text: `Welcome back Specialist: ${userName}. Syncing your asset records...`, type: "success" });
-        setTimeout(() => navigate("/dashboard"), 1500); 
-      } else {
-        setBanner({ text: `Welcome back to Estate Ease, ${userName}!`, type: "success" });
-        setTimeout(() => navigate("/"), 1500); 
-      }
+      } else if (finalRoleString === "seller") {
+  setBanner({
+    text: `Welcome back Seller: ${userName}. Loading your seller workspace...`,
+    type: "success"
+  });
+
+  setTimeout(() => navigate("/seller-dashboard"), 1500);
+}
+else if (finalRoleString === "admin") {
+  setBanner({
+    text: `Access Granted! Welcome back Admin: ${userName}.`,
+    type: "success"
+  });
+
+  setTimeout(() => navigate("/admin-dashboard"), 1500);
+}
+else if (finalRoleString === "superadmin") {
+  setBanner({
+    text: `System Core Access Approved: ${userName}`,
+    type: "success"
+  });
+
+  setTimeout(() => navigate("/super-admin-dashboard"), 1500);
+}
+else {
+  setBanner({
+    text: `Welcome back to Estate Ease, ${userName}!`,
+    type: "success"
+  });
+
+  setTimeout(() => navigate("/"), 1500);
+}
 
     } catch (error) {
       setBanner({ 

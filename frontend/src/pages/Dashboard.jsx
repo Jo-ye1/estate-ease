@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import React, { useEffect, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import api from "@/lib/api";
@@ -45,9 +46,10 @@ import {
 } from "recharts";
 
 import PropertyAnalyticsPanel from "./dashboard/PropertyAnalyticsPanel.jsx";
-
+import AdminPropertyControlPage from "./admin/AdminPropertyControlPage";
 
 const DashboardPage = () => {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   const [activeTab, setActiveTab] = useState("overview");
@@ -92,7 +94,7 @@ const DashboardPage = () => {
     "#3b82f6",
     "#6b7280",
   ];
-
+ 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 9;
 
@@ -236,7 +238,6 @@ const DashboardPage = () => {
     closed: "bg-black text-white",
   };
 
-
   return (
     <div className="w-full min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 transition-colors duration-200 pb-24 flex flex-col select-none">
       <Navbar />
@@ -312,7 +313,7 @@ const DashboardPage = () => {
             </div>
           </div>
 
-          {/* Card 5: Closed Deals */}
+           {/* Card 5: Closed Deals */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/50 p-5 rounded-2xl shadow-xs flex items-center justify-between text-left">
             <div>
               <p className="text-slate-400 dark:text-slate-500 font-bold text-[10px] uppercase tracking-widest">Closed Deals</p>
@@ -483,8 +484,21 @@ const DashboardPage = () => {
   </div>
 </div>
 
+<div className="grid grid-cols-1 md:grid-cols-3 gap-4 my-6">
+          <button
+            onClick={() => navigate("/admin/properties-control")}
+            className="flex items-center justify-between p-4 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-xl transition-all text-left cursor-pointer group shadow-2xs"
+          >
+            <div>
+              <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 group-hover:text-blue-500 transition-colors">
+                Global Property Moderation
+              </h4>
+              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">Approve pending listings, manage flagged posts, or delete items globally.</p>
+            </div>
+            <span className="text-slate-400 dark:text-slate-600 group-hover:text-blue-500 font-bold transition-colors">→</span>
+          </button>
 
-
+</div>
 
 
 
@@ -520,24 +534,26 @@ const DashboardPage = () => {
               <div className="text-center py-20 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900/40 w-full flex flex-col items-center justify-center">
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">No workspace records detected</p>
               </div>
-            ) : (
+                        ) : (
               <div className="space-y-8 w-full">
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 w-full justify-items-center sm:justify-items-start">
                   {paginatedList.map((property) => (
-                    <div key={property._id} className="w-full max-w-[312px] h-[385px] bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl overflow-hidden flex flex-col justify-between shadow-xs hover:shadow-sm transition-all duration-200 group text-left">
+                    /* 🟢 FIXED: Swapped h-[385px] for dynamic min-h-[420px] and removed top-level overflow limits */
+                    <div key={property._id} className="w-full max-w-[312px] min-h-[420px] bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl flex flex-col justify-between shadow-xs hover:shadow-sm transition-all duration-200 group text-left relative">
                       <div>
-                        <div className="relative h-44 w-full bg-slate-950 overflow-hidden shrink-0 border-b border-slate-100 dark:border-slate-800/20">
+                        {/* Keep image clipping safe with local overflow-hidden */}
+                        <div className="relative h-44 w-full bg-slate-950 overflow-hidden shrink-0 rounded-t-2xl border-b border-slate-100 dark:border-slate-800/20">
                           <img
-  src={
-    property.images?.length > 0
-      ? property.images[0].startsWith("http")
-        ? `${property.images[0]}?t=${new Date(property.updatedAt).getTime()}`
-        : `http://localhost:5000${property.images[0]}?t=${new Date(property.updatedAt).getTime()}`
-      : "/placeholder.jpg"
-  }
-  alt={property.title}
-  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-/>
+                            src={
+                              property.images?.length > 0
+                                ? property.images[0].startsWith("http")
+                                  ? `${property.images[0]}?t=${new Date(property.updatedAt).getTime()}`
+                                  : `http://localhost:5000${property.images[0]}?t=${new Date(property.updatedAt).getTime()}`
+                                : "/placeholder.jpg"
+                            }
+                            alt={property.title}
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          />
 
                           <span className={`absolute top-3 left-3 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider shadow-xs ${statusColors[property.listingStatus] || "bg-slate-500 text-white"}`}>
                             {property.listingStatus || "Draft"}
@@ -557,7 +573,8 @@ const DashboardPage = () => {
                         </div>
                       </div>
 
-                      <div className="p-3.5 border-t border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-950/20 flex flex-col gap-2 shrink-0">
+                      {/* Bottom actions and analytics container panel wrapper */}
+                      <div className="p-3.5 border-t border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-950/20 flex flex-col gap-2 shrink-0 rounded-b-2xl">
                         <select
                           value={property.listingStatus || "draft"}
                           onChange={(e) => handleStatusChange(property._id, e.target.value)}
@@ -588,6 +605,7 @@ const DashboardPage = () => {
                           </button>
                         </div>
 
+                        {/* 🟢 Renders fully now without cutting out because parent constraints are open */}
                         <PropertyAnalyticsPanel propertyId={property._id} />
 
                       </div>
@@ -608,8 +626,7 @@ const DashboardPage = () => {
                     
                     <div className="text-xs font-mono font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                       Page {currentPage} of {totalPages}
-                    </div>
-                    
+                    </div>              
                     <button
                       type="button"
                       disabled={currentPage === totalPages}

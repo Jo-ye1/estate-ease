@@ -37,7 +37,6 @@ const leadSchema = new mongoose.Schema(
       required: true,
     },
 
-    // 🟢 UPDATED: Full CRM pipeline lifecycle statuses
     status: {
       type: String,
       enum: [
@@ -52,12 +51,7 @@ const leadSchema = new mongoose.Schema(
       default: "new"
     },
 
-    source: {
-      type: String,
-      default: "property_contact_form",
-    },
 
-    // 🟢 ADDED: CRM Progression tracking timestamps
     contactedAt: {
       type: Date,
       default: null,
@@ -78,11 +72,116 @@ const leadSchema = new mongoose.Schema(
       default: null,
     },
 
-    // 🟢 ADDED: Lost details logging
+    lastInteractionAt: {
+      type: Date,
+      default: Date.now
+    },
+
     lossReason: {
       type: String,
       default: "",
     },
+
+    pipelineStage: {
+      type: String,
+      enum: [
+        "new",
+        "contacted",
+        "viewing",
+        "negotiation",
+        "offer",
+        "contract",
+        "closed",
+        "lost"
+      ],
+      default: "new"
+    },
+
+    stageHistory: [
+      {
+        stage: {
+          type: String,
+          enum: [
+            "new",
+            "contacted",
+            "viewing",
+            "negotiation",
+            "offer",
+            "contract",
+            "closed",
+            "lost"
+          ]
+        },
+        movedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User"
+        },
+        movedAt: {
+          type: Date,
+          default: Date.now
+        }
+      }
+    ],
+
+    lastStageUpdatedAt: {
+      type: Date,
+      default: Date.now
+    },
+
+    priority: {
+      type: String,
+      enum: ["low", "medium", "high", "urgent"],
+      default: "medium"
+    },
+
+    assignedAgent: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null
+    },
+    assignedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null
+    },
+    assignedAt: {
+      type: Date,
+      default: null
+    },
+
+    phone: String,
+
+budget: {
+  type: Number,
+  default: 0
+},
+
+leadScore: {
+  type: Number,
+  default: 0
+},
+
+tags: [{
+  type: String
+}],
+
+nextFollowUp: {
+  type: Date,
+  default: null
+  },
+  
+source: {
+  type: String,
+  enum: [
+    "property_contact_form",
+    "website",
+    "referral",
+    "social_media",
+    "manual"
+  ],
+  default: "property_contact_form"
+}
+
   },
   { timestamps: true }
 );
@@ -90,5 +189,8 @@ const leadSchema = new mongoose.Schema(
 leadSchema.index({ owner: 1 });
 leadSchema.index({ buyer: 1 });
 leadSchema.index({ property: 1 });
+leadSchema.index({ pipelineStage: 1 });
+leadSchema.index({ assignedAgent: 1 });
+leadSchema.index({ owner: 1, pipelineStage: 1 });
 
 export default mongoose.model("Lead", leadSchema);

@@ -2,15 +2,18 @@ import Lead from "../models/Lead.js";
 import Property from "../models/Property.js";
 import Conversation from "../models/Conversation.js";
 import Message from "../models/Message.js";
+import Notification from "../models/Notification.js"; 
 import { trackLeadRequest, trackLeadConversion } from "../services/propertyAnalyticsService.js";
 import { createAuditLog } from "../services/auditService.js"; 
-import createNotification from "../utils/createNotification.js";
+import { createNotification } from "../utils/createNotification.js";
 import {
   getIO,
   getReceiverSocket,
 } from "../socket/socket.js";
 import AuditLog from "../models/AuditLog.js";
 import { logRevenue } from "../services/revenueService.js";
+import FollowUp from "../models/FollowUp.js";
+import { sendMarketplaceEmail } from "../utils/emailService.js"
 
 
 export const getAllLeads = async (req, res) => {
@@ -56,9 +59,11 @@ export const createLead = async (req, res) => {
       }
     }
 
+    const leadOwnerId = property.assignedAgent || property.owner._id;
+
     const lead = await Lead.create({
       property: property._id,
-      owner: property.owner._id,
+      owner: leadOwnerId,
       buyer: req.user?._id || null,
       name: req.body.name,
       email: req.body.email,
@@ -66,10 +71,38 @@ export const createLead = async (req, res) => {
       status: "new",
     });
 
-    // 2. HOOK D: Track lead submission immediately using the property's ID
+    const populatedPropertyContext = await Property.findById(property._id).populate("owner", "email name");
+
+    if (populatedPropertyContext?.owner?.email) {
+      await sendMarketplaceEmail({
+        to: populatedPropertyContext.owner.email,
+        subject: "New buyer interest detected!",
+        text: `Hello ${populatedPropertyContext.owner.name},\n\nA new buyer has shown interest in your property listing: "${populatedPropertyContext.title}". Log into your pipeline dashboard space to view their details.`
+      });
+    }
+
+    const nextDate = new Date();
+    nextDate.setDate(
+      nextDate.getDate() + 2
+    );
+
+    await FollowUp.create({
+      lead: lead._id,
+      owner: leadOwnerId,
+      nextFollowUp: nextDate,
+    });
+
+    await createNotification({
+      recipient: property.owner, 
+      type: "NEW_LEAD_RECEIVED",
+      title: "New Property Inquiry Received",
+      message: `A new buyer has shown interest in your property listing: ${property.title}.`,
+      relatedId: lead._id,
+      relatedType: "Lead"
+    });
+
     await trackLeadRequest(property._id);
 
-    // 🟢 AUDIT HOOK D: Log the lead creation event safely
     await createAuditLog({
       actor: req.user?._id || null,
       action: "LEAD_CREATED",
@@ -86,7 +119,7 @@ export const createLead = async (req, res) => {
           property: property._id,
           participants: {
             $all: [
-              property.owner._id,
+              leadOwnerId,
               req.user._id,
             ],
           },
@@ -96,7 +129,7 @@ export const createLead = async (req, res) => {
         conversation =
           await Conversation.create({
             participants: [
-              property.owner._id,
+              leadOwnerId,
               req.user._id,
             ],
             property: property._id,
@@ -108,7 +141,7 @@ export const createLead = async (req, res) => {
       message = await Message.create({
         conversation: conversation._id,
         sender: req.user._id,
-        receiver: property.owner._id,
+        receiver: leadOwnerId,
         property: property._id,
         text: req.body.message,
       });
@@ -121,9 +154,8 @@ export const createLead = async (req, res) => {
       await conversation.save();
     }
 
-    // 🟢 UPDATED: New Notification Structure according to Step rules
     await createNotification({
-      recipient: property.owner._id,
+      recipient: leadOwnerId,
       sender: req.user?._id || null,
       type: "NEW_LEAD",
       title: "New Lead Received",
@@ -135,7 +167,7 @@ export const createLead = async (req, res) => {
     const io = getIO();
     const receiverSocket =
       getReceiverSocket(
-        property.owner._id.toString()
+        leadOwnerId.toString()
       );
 
     if (receiverSocket) {
@@ -274,9 +306,6 @@ export const getMySentLeads = async (
     }
 };
 
-
-
-
 export const getLeadResponseMetrics = async (req, res) => {
   try {
     const ownerId = req.user._id;
@@ -307,5 +336,3 @@ export const getLeadResponseMetrics = async (req, res) => {
     });
   }
 };
-
-

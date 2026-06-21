@@ -116,15 +116,32 @@
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.556 0 0);
 }
-
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    }
+  }
   body {
     @apply bg-background text-foreground;
-    }
+  }
   html {
     @apply font-sans;
+  }
+
+  @media (max-width: 1024px) {
+    .flex.gap-4.overflow-x-auto.pb-4 {
+      display: flex !important;
+      overflow-x: scroll !important;
+      -webkit-overflow-scrolling: touch !important;
+      padding-bottom: 1rem !important;
     }
+    
+    .grid-cols-3, .lg\:grid-cols-3, .grid-cols-7, .lg\:grid-cols-7, .grid-cols-9, .lg\:grid-cols-9 {
+      grid-template-cols: repeat(1, minmax(0, 1fr)) !important;
+    }
+    
+    .recharts-responsive-container {
+      min-height: 250px !important;
+      height: 250px !important;
+    }
+  }
 }

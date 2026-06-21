@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import axios from "axios";
 import {
   Heart,
   Edit,
@@ -13,6 +14,8 @@ import {
   Bed,
   Bath,
   Square,
+  Sparkles ,
+  Home,
 } from "lucide-react";
 
 import {
@@ -24,6 +27,8 @@ import {
 
 import Navbar from "@/components/home/Navbar";
 import { useFavorites } from "@/context/FavoritesContext";
+import SubmitPropertyReviewCard from "@/pages/dashboard/SubmitPropertyReviewCard";
+
 
 export default function PropertyDetailsPage() {
   const { id } = useParams();
@@ -38,6 +43,30 @@ export default function PropertyDetailsPage() {
     email: "",
     message: "",
   });
+
+  const [relatedProperties, setRelatedProperties] = useState([]);
+  const [loadingRelated, setLoadingRelated] = useState(false);
+
+  useEffect(() => {
+    const loadRelatedPortfolioData = async () => {
+      if (!id) return;
+      try {
+        setLoadingRelated(true);
+        const token = localStorage.getItem("token");
+        const res = await axios.get(`http://localhost:5000/api/properties/${id}/related`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const dynamicArray = Array.isArray(res.data) ? res.data : (res.data?.properties || []);
+        setRelatedProperties(dynamicArray.slice(0, 3));
+      } catch (err) {
+        console.error("Failed loading related portfolio recommendations:", err);
+        setRelatedProperties([]);
+      } finally {
+        setLoadingRelated(false);
+      }
+    };
+    loadRelatedPortfolioData();
+  }, [id]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -132,6 +161,7 @@ export default function PropertyDetailsPage() {
     property?.pricing?.dailyRate ||
     0;
 
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <Navbar />
@@ -209,6 +239,92 @@ export default function PropertyDetailsPage() {
                 {property.description}
               </p>
             </div>
+        {/* 🟢 PHASE 8 INTEGRATION: Buyer Feedback Module Section */}
+        {/* Only allow logged-in Users/Buyers to submit reviews, avoiding self-reviews for owners */}
+        {String(user?.role).toLowerCase() === "user" && property?.owner?._id !== user?._id && (
+          <div className="max-w-7xl mx-auto px-4 mt-10 border-t border-slate-200 dark:border-slate-800/80 pt-10">
+            <div className="flex flex-col gap-1">
+              <span className="text-blue-500 font-bold text-[10px] uppercase tracking-widest">Client Trust Index</span>
+              <h2 className="text-base font-black text-slate-900 dark:text-white uppercase tracking-tight">Evaluate Transaction Quality</h2>
+              <p className="text-xs text-slate-400 dark:text-slate-500">Share your closing feedback to refine agent scores and platform accountability records.</p>
+            </div>
+            
+            <SubmitPropertyReviewCard 
+              targetUserId={property?.assignedAgent || property?.owner?._id} // Routes score to the assigned agent or owner
+              propertyId={property?._id}
+              onReviewSuccess={() => {
+                // Optional callback function trigger to refresh parent page indicators dynamically
+                if (typeof fetchPropertyDetails === "function") fetchPropertyDetails();
+              }}
+            />
+          </div>
+        )}
+
+ <section className="border-t border-slate-200 dark:border-slate-800/80 pt-10 mt-12 max-w-7xl mx-auto px-4">
+      <div className="flex items-center gap-2 mb-6">
+        <Sparkles size={16} className="text-blue-500" />
+        <h2 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+          Recommended Similar Properties Nearby
+        </h2>
+      </div>
+
+      {loadingRelated ? (
+        <div className="flex justify-center items-center py-10">
+          <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : relatedProperties.length === 0 ? (
+        <div className="text-left py-6 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+          No alternative listings tracked within this category parameters.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {relatedProperties.map((item) => {
+            const displayPrice = item?.pricing?.salePrice || item?.pricing?.monthlyRent || item?.pricing?.dailyRate || item?.price || 0;
+            const itemImage = item?.images?.[0] || item?.images;
+
+            return (
+              <div 
+                key={item._id} 
+                onClick={() => {
+                  // Directs page focus straight to the selected asset node ID smoothly
+                  navigate(`/properties/${item._id}`);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all flex flex-col justify-between cursor-pointer group"
+              >
+                <div>
+                  <div className="w-full h-40 bg-slate-100 dark:bg-slate-950 rounded-xl overflow-hidden flex items-center justify-center text-slate-400 border border-slate-200/50 dark:border-slate-800/50">
+                    {itemImage ? (
+                      <img 
+                        src={itemImage.startsWith("http") ? itemImage : `http://localhost:5000${itemImage}`} 
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                        alt="" 
+                      />
+                    ) : (
+                      <Home size={22} />
+                    )}
+                  </div>
+                  <h4 className="font-black text-sm text-slate-900 dark:text-white mt-3 truncate group-hover:text-blue-500 transition-colors">
+                    {item.title}
+                  </h4>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 truncate mt-0.5">
+                    {item.location} • {item.propertyCategory}
+                  </p>
+                </div>
+                <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/50 flex justify-between items-center">
+                  <span className="text-xs font-black text-blue-500">${displayPrice} / {item.listingType === "sale" ? "total" : item.listingType === "rent" ? "mo" : "day"}</span>
+                  <span className="text-[10px] font-black uppercase tracking-wider bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400 px-2 py-1 rounded-lg border border-slate-100 dark:border-slate-800/80 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                    View Unit
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+</section>
+
+
 
             {/* OWNER PANEL */}
             {isOwner && (
@@ -318,6 +434,7 @@ export default function PropertyDetailsPage() {
                 </form>
               </div>
             )}
+
 
             {isOwner && (
               <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 text-center">

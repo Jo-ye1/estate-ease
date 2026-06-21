@@ -9,11 +9,14 @@ import {
   loginUser,
   getMe,
   updateProfile,
-  socialLogin
+  socialLogin,
 } from "../controllers/authController.js";
 
-import { protect } from "../middleware/authMiddleware.js";
 import upload from "../middleware/uploadMiddleware.js";
+import { submitUserKYCDocuments, evaluateKYCCompliance } from "../controllers/kycController.js";
+import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
+import { submitUserReviewScore } from "../controllers/reviewController.js";
+
 
 const router = express.Router();
 
@@ -102,9 +105,11 @@ router.post("/reset-password", async (req, res) => {
 router.get("/me", protect, getMe);
 router.put("/profile", protect, updateProfile);
 
-/* =========================================================
-   FILE UPLOAD (AVATAR)
-========================================================= */
+router.post("/profile/kyc-submit", protect, submitUserKYCDocuments);
+router.put("/admin/kyc-evaluate", protect, authorizeRoles("admin", "super_admin"), evaluateKYCCompliance);
+router.post("/profile/submit-review", protect, authorizeRoles("user", "buyer"), submitUserReviewScore);
+
+
 router.post(
   "/upload-avatar",
   protect,
@@ -176,5 +181,37 @@ router.put("/update-password", protect, async (req, res) => {
     });
   }
 });
+
+
+router.put("/update-core", protect, async (req, res) => {
+  try {
+    const { name, email, phone } = req.body;
+
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found"
+      });
+    }
+
+    if (name !== undefined) user.name = name;
+    if (email !== undefined) user.email = email.trim().toLowerCase();
+    if (phone !== undefined) user.phone = phone;
+
+    await user.save();
+
+    res.json({
+      success: true,
+      user
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message
+    });
+  }
+});
+
+
 
 export default router;

@@ -2,6 +2,8 @@ import Property from "../models/Property.js";
 import mongoose from "mongoose";
 import fs from "fs";
 import path from "path";
+import SearchLog from "../models/SearchLog.js";
+import Notification from "../models/Notification.js";
 
 import { 
   initializePropertyAnalytics, 
@@ -10,13 +12,14 @@ import {
   trackPublishDate 
 } from "../services/propertyAnalyticsService.js";
 
-import Favorite from "../models/Favorite.js"; // 🟢 ADDED THIS IMPORT AT THE TOP
+import Favorite from "../models/Favorite.js"; 
 
 
 import { createAuditLog } from "../services/auditService.js";
 import Subscription from "../models/Subscription.js";
 import { PLANS } from "../config/plans.js"; 
 import { logRevenue } from "../services/revenueService.js";
+import { createNotification } from "../utils/createNotification.js";
 
 
 export const createProperty = async (req, res) => {
@@ -67,10 +70,14 @@ export const createProperty = async (req, res) => {
       leaseDuration,
       maxGuests,
       availabilityStatus: availabilityStatus || "available",
-      listingStatus: req.body.listingStatus || "draft",
+      listingStatus: "pending", 
       pricing,
       owner: req.user._id,
       images: [],
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      isExpired: false,
+      renewalStatus: "active",
+      lastRenewalDate: new Date()
     });
 
     await initializePropertyAnalytics(property._id);
@@ -84,6 +91,15 @@ export const createProperty = async (req, res) => {
         title: property.title,
       },
     });
+
+    await createNotification({
+  type: "PROPERTY_SUBMITTED",
+  title: "New Property Awaiting Review",
+  message: `A seller submitted the listing "${property.title}" for validation check protocols.`,
+  relatedId: property._id,
+  relatedType: "Property"
+});
+
 
     res.status(201).json(property);
   } catch (error) {
@@ -159,8 +175,21 @@ export const getProperties = async (req, res) => {
       maxPrice,
     } = req.query;
 
+    SearchLog.create({
+      user: req.user?._id || null, 
+      keyword: search || null,                  
+      location: location || null,
+      category: propertyCategory || null,       
+      operation: listingType || type || null,   
+      bedrooms: bedrooms && bedrooms !== "All" && bedrooms !== "all" ? Number(bedrooms) : null,
+      minPrice: minPrice ? Number(minPrice) : null,
+      maxPrice: maxPrice ? Number(maxPrice) : null,
+    }).catch(err => console.error("Search logging failed:", err)); 
+
     const query = {
-      listingStatus: { $in: ["published", "available", "Available", "Published"] },
+      listingStatus: "published",
+      availabilityStatus: "available",
+      isExpired: false,
     };
 
     const andConditions = [];
@@ -252,102 +281,39 @@ export const getProperties = async (req, res) => {
 
 export const updateProperty = async (req, res) => {
   try {
-    const property = await Property.findById(req.params.id);
+    const { id } = req.params;
+    const PropertyModel = mongoose.model("Property");
 
+    let property = await PropertyModel.findById(id);
     if (!property) {
-      return res.status(404).json({
-        message: "Property not found",
-      });
+      return res.status(404).json({ message: "Property not found" });
     }
 
-    if (property.owner.toString() !== req.user._id.toString()) {
-      return res.status(401).json({
-        message: "Unauthorized",
-      });
+    const isOwner = property.owner.toString() === req.user._id.toString();
+    if (!isOwner) {
+      return res.status(403).json({ message: "Unauthorized access block." });
     }
 
-    // 🟢 FIXED: Directly update the document using req.body with no array stripping hooks
-    const updatedProperty = await Property.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      {
-        new: true,
-        runValidators: true,
-      }
-    ).populate("owner", "name email avatar");
+    const isModerator = ["admin", "super_admin"].includes(String(req.user.role).toLowerCase());
 
-    await createAuditLog({
-      actor: req.user._id,
-      action: "PROPERTY_UPDATED",
-      targetType: "Property",
-      targetId: updatedProperty._id,
-    });
+    // 🟢 LOOP BREAKER RULE 2: Any modifications made by a seller reset the status back to pending
+    const updateData = { ...req.body };
+    if (!isModerator) {
+      updateData.listingStatus = "pending";
+    }
+
+    const updatedProperty = await PropertyModel.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
 
     res.json(updatedProperty);
   } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
+    res.status(500).json({ message: error.message });
   }
 };
 
-
-
-export const deleteProperty = async (req, res) => {
-  try {
-    const property = await Property.findById(req.params.id);
-
-    if (!property) {
-      return res.status(404).json({
-        message: "Property not found",
-      });
-    }
-
-    if (
-      property.owner.toString() !== req.user._id.toString()
-    ) {
-      return res.status(401).json({
-        message: "Unauthorized",
-      });
-    }
-
-    // 🟢 THE FIX: Delete all user favorite bookmarks pointing to this property to lower favorite metrics instantly
-    await Favorite.deleteMany({ property: property._id });
-
-    for (const image of property.images) {
-      const filename = image.split("/uploads/")[1];
-
-      if (filename) {
-        const filePath = path.join(
-          process.cwd(),
-          "uploads",
-          filename
-        );
-
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        }
-      }
-    }
-
-    await createAuditLog({
-      actor: req.user._id,
-      action: "PROPERTY_DELETED",
-      targetType: "Property",
-      targetId: property._id,
-    });
-
-    await property.deleteOne();
-
-    res.json({
-      message: "Property deleted successfully",
-    });
-  } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
-  }
-};
 
 
 export const getRelatedProperties = async (req, res) => {
@@ -385,6 +351,7 @@ export const getRelatedProperties = async (req, res) => {
   }
 };
 
+
 export const getStats = async (req, res) => {
   try {
     const totalProperties =
@@ -412,56 +379,48 @@ export const getStats = async (req, res) => {
   }
 };
 
-export const updatePropertyStatus = async (
-  req,
-  res
-) => {
+export const updatePropertyStatus = async (req, res) => {
   try {
-    const { listingStatus } = req.body;
+    const { id } = req.params;
+    const { status } = req.body;
+    const PropertyModel = mongoose.model("Property");
 
-    const property = await Property.findById(
-      req.params.id
-    );
-
+    const property = await PropertyModel.findById(id);
     if (!property) {
-      return res.status(404).json({
-        message: "Property not found",
-      });
+      return res.status(404).json({ message: "Property listing not found" });
     }
 
-    if (
-      property.owner.toString() !== req.user._id.toString()
-    ) {
-      return res.status(401).json({
-        message: "Unauthorized",
-      });
+    const isModerator = ["admin", "super_admin"].includes(String(req.user.role).toLowerCase());
+
+    // 🟢 LOOP BREAKER RULE 1: If a non-admin tries to force-publish an item, hijack it and set it to pending
+    let targetStatus = status;
+    if (targetStatus === "published" && !isModerator) {
+      targetStatus = "pending";
     }
 
-    property.listingStatus = listingStatus;
-
+    property.listingStatus = targetStatus;
     await property.save();
 
-    res.json(property);
-  } catch (error) {
-    res.status(500).json({
-      message: error.message,
+    res.json({ 
+      success: true, 
+      message: isModerator ? `Listing updated to ${targetStatus}` : "Listing submitted to admin moderation queue.", 
+      property 
     });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };
 
+
+
 export const getMyProperties = async (req, res) => {
   try {
-    const properties = await Property.find({
-      owner: req.user._id,
-    })
-      .sort({ createdAt: -1 })
-      .populate("owner", "name email avatar");
+    const properties = await Property.find({ owner: req.user._id })
+      .sort({ createdAt: -1 });
 
     res.json(properties);
   } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
+    res.status(500).json({ message: error.message });
   }
 };
 
@@ -534,97 +493,217 @@ export const submitPropertyForReview = async (req, res) => {
   }
 };
 
-export const rejectProperty = async (req, res) => {
-  try {
-    const { reason } = req.body;
-
-    const property = await Property.findById(req.params.id);
-
-    if (!property) {
-      return res.status(404).json({
-        message: "Property not found",
-      });
-    }
-
-    property.listingStatus = "rejected";
-    property.rejectedReason = reason || "No reason provided";
-
-    await property.save();
-
-    await AuditLog.create({
-      actor: req.user._id,
-      action: "PROPERTY_REJECTED",
-      targetId: property._id,
-      targetType: "Property",
-      message: `${property.title} rejected`,
-    });
-
-    await createNotification({
-      recipient: property.owner,
-      sender: req.user._id,
-      type: "PROPERTY_REJECTED",
-      title: "Property Rejected",
-      message: `${property.title} was rejected`,
-      relatedId: property._id,
-      relatedType: "Property",
-    });
-
-    res.json({
-      success: true,
-      property,
-    });
-  } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
-  }
-};
-
 export const approveProperty = async (req, res) => {
   try {
-    const property = await Property.findById(req.params.id);
+    const { id } = req.params;
+    const PropertyModel = mongoose.model("Property");
 
+    const property = await PropertyModel.findById(id);
     if (!property) {
-      return res.status(404).json({
-        message: "Property not found",
-      });
+      return res.status(404).json({ message: "Property listing asset not found" });
     }
 
     property.listingStatus = "published";
     property.approvedBy = req.user._id;
     property.approvedAt = new Date();
-    property.rejectedReason = "";
+    await property.save();
+
+    const populatedOwner = await mongoose.model("User").findById(property.owner);
+    if (populatedOwner?.email) {
+      await sendMarketplaceEmail({
+        to: populatedOwner.email,
+        subject: "Your listing is now live!",
+        text: `Congratulations ${populatedOwner.name},\n\nYour marketplace property posting "${property.title}" has passed system moderation check protocols and is now streaming live inside buyer search grids.`
+      });
+    }
+
+    try {
+      await createNotification({
+        recipient: property.owner, 
+        type: "property",
+        title: "Listing Approved Live!",
+        message: `Your property "${property.title}" has passed marketplace moderation check protocols.`,
+        relatedId: property._id,
+        relatedType: "Property"
+      });
+    } catch (notifErr) {
+      console.error("Alert background trace dispatch failed:", notifErr.message);
+    }
+
+    res.json({ success: true, message: "Property approved and published live.", property });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const rejectProperty = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+    const PropertyModel = mongoose.model("Property");
+
+    const property = await PropertyModel.findById(id);
+    if (!property) {
+      return res.status(404).json({ message: "Property asset row not found" });
+    }
+
+    property.listingStatus = "rejected";
+    property.rejectedReason = reason || "Listing failed platform description criteria policies.";
+    await property.save();
+
+    const populatedOwner = await mongoose.model("User").findById(property.owner);
+    if (populatedOwner?.email) {
+      await sendMarketplaceEmail({
+        to: populatedOwner.email,
+        subject: "Action required on your listing",
+        text: `Hello ${populatedOwner.name},\n\nYour property posting "${property.title}" was declined during moderation checks. Reason: ${property.rejectedReason || "Failed description criteria guidelines."}. Adjust parameters and resubmit for evaluation.`
+      });
+    }
+
+    try {
+      await createNotification({
+        recipient: property.owner,
+        type: "property",
+        title: "Listing Rejected",
+        message: `Moderation updates: "${property.title}" was declined. Reason: ${property.rejectedReason}`,
+        relatedId: property._id,
+        relatedType: "Property"
+      });
+    } catch (notifErr) {
+      console.error("Alert fallback failed:", notifErr.message);
+    }
+
+    res.json({ success: true, message: "Property listing marked rejected and stored in archive.", property });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+
+
+
+export const deleteProperty = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const PropertyModel = mongoose.model("Property");
+
+    const property = await PropertyModel.findById(id);
+    if (!property) {
+      return res.status(404).json({ message: "Property listing not found" });
+    }
+
+    const isOwner = property.owner.toString() === req.user._id.toString();
+    const isModerator = ["admin", "super_admin"].includes(String(req.user.role).toLowerCase());
+
+    if (!isOwner && !isModerator) {
+      return res.status(403).json({ message: "Unauthorized permission block." });
+    }
+
+    property.listingStatus = "archived";
+    await property.save();
+
+    await createAuditLog({
+      actor: req.user._id,
+      action: "PROPERTY_SOFT_DELETED",
+      targetType: "Property",
+      targetId: id,
+      metadata: { title: property.title }
+    });
+
+    res.json({ success: true, message: "Property moved to soft-deleted archive storage." });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+
+export const restoreProperty = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const PropertyModel = mongoose.model("Property");
+
+    const property = await PropertyModel.findById(id);
+    if (!property) {
+      return res.status(404).json({ message: "Property not found" });
+    }
+
+    property.listingStatus = "pending";
+    await property.save();
+
+    res.json({ success: true, message: "Property listing restored back to the pending moderation queue.", property });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const getAdminGlobalProperties = async (req, res) => {
+  try {
+    // 🟢 ABSOLUTE UNRESTRICTED DATA LOOP: Fetches everything for moderation analysis
+    const properties = await Property.find({})
+      .populate("owner", "name email avatar")
+      .sort({ createdAt: -1 });
+
+    res.json(properties);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+
+export const renewPropertyListing = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const PropertyModel = mongoose.model("Property");
+
+    const property = await PropertyModel.findById(id);
+    if (!property) {
+      return res.status(404).json({ message: "Property listing not found" });
+    }
+
+    if (property.owner.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: "Unauthorized: You do not own this listing asset." });
+    }
+
+    property.expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    property.isExpired = false;
+    property.listingStatus = "pending"; 
+    property.renewalStatus = "active";
+    property.lastRenewalDate = new Date();
+    property.reminderLogs = [];
 
     await property.save();
 
-    // 🟢 ANALYTICS HOOK: Track the public publish date milestone
-    await trackPublishDate(property._id);
-
-    await AuditLog.create({
+    await createAuditLog({
       actor: req.user._id,
-      action: "PROPERTY_APPROVED",
-      targetId: property._id,
+      action: "PROPERTY_RENEWED",
       targetType: "Property",
-      message: `${property.title} approved`,
-    });
-
-    await createNotification({
-      recipient: property.owner,
-      sender: req.user._id,
-      type: "PROPERTY_APPROVED",
-      title: "Property Approved",
-      message: `${property.title} has been approved`,
-      relatedId: property._id,
-      relatedType: "Property",
+      targetId: id,
+      metadata: { title: property.title }
     });
 
     res.json({
       success: true,
-      property,
+      message: "Property listing successfully extended and returned to the admin moderation queue.",
+      property
     });
   } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+export const uploadKycDocumentAsset = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No document attached to request multi-part stream." });
+    }
+
+    const fileUrl = `/uploads/documents/${req.file.filename}`;
+    res.json({ success: true, fileUrl: fileUrl, url: fileUrl });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };

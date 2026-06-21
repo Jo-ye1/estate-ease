@@ -8,7 +8,6 @@ import ProtectedRoute from "./ProtectedRoute";
 import PropertiesPage from "@/pages/PropertiesPage";
 import PropertyDetailsPage from "@/pages/PropertyDetailsPage";
 import FavoritesPage from "@/pages/FavoritesPage";
-import ProfilePage from "@/pages/ProfilePage";
 import AddPropertyPage from "@/pages/AddPropertyPage";
 import EditPropertyPage from "@/pages/EditPropertyPage";
 import SearchPage from "@/pages/SearchPage";
@@ -28,7 +27,29 @@ import InboxPage from "../pages/InboxPage";
 import AdminAnalyticsPage from "@/pages/admin/AdminAnalyticsPage";
 import LeadsDashboardPage from "@/pages/admin/LeadsDashboardPage";
 import HowItWorks from "@/pages/HowItWorks";
-
+import PricingPage from "@/pages/PricingPage";
+import BillingPage from "@/pages/BillingPage";
+import IntelligenceDashboardPage from "@/pages/IntelligenceDashboardPage";
+import NotificationsPage from "@/pages/NotificationsPage";
+import AdminSubscriptionsPage from "@/pages/admin/AdminSubscriptionsPage";
+import AdminBillingPage from "@/pages/admin/AdminBillingPage";
+import AdminPropertyControlPage from "@/pages/admin/AdminPropertyControlPage";
+import SellerDashboardPage from "@/pages/seller/SellerDashboardPage";
+import AdminSystemHealthPage from "@/pages/admin/AdminSystemHealthPage";
+import StandardAdminDashboardPage from "@/pages/admin/StandardAdminDashboardPage";
+import AdminSettingsDashboard from "@/pages/MatrixSettingPage"; 
+import AdminAlertCenterPage from "@/pages/admin/AdminAlertCenterPage";
+import SellerRevenuePage from "@/pages/seller/SellerRevenuePage";
+import MarketInsightsPage from "@/pages/seller/MarketInsightsPage";
+import AgencyDashboardPage from "@/pages/agency/AgencyDashboardPage";
+import AgentDashboardPage from "@/pages/agency/AgentDashboardPage";
+import AdminKYCCenterPage from "@/pages/admin/AdminKYCCenterPage";
+import PipelineKanban from "@/pages/agency/PipelineKanban";
+import KycVerificationDesk from "@/pages/admin/KycVerificationDesk";
+import CommissionDashboardPage from "@/pages/CommissionDashboardPage";
+import ReportsDashboardPage from "@/pages/agency/ReportsDashboardpage";
+import AuditChangelogPage from "@/pages/admin/AuditChangelogPage";
+import UniversalProfilePage from "@/pages/UniversalProfilePage";
 
 export default function AppRoutes() {
   return (
@@ -51,15 +72,73 @@ export default function AppRoutes() {
       <Route path="/blog/:id" element={<BlogDetailsPage />} />
       <Route path="/welcome-setup" element={<WelcomeSetup />} />
       <Route path="/how-it-works" element={<HowItWorks />} />
+      <Route path="/profile/:identifier" element={<UniversalProfilePage />} />
+
+
+
+      <Route
+        path="/seller-dashboard"
+        element={
+          <ProtectedRoute allowedRoles={["seller"]}>
+            <SellerDashboardPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/billing"
+        element={
+          <ProtectedRoute>
+            <BillingPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard/billing"
+        element={
+          <ProtectedRoute>
+            <BillingPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/pricing"
+        element={
+          <ProtectedRoute>
+            <PricingPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/intelligence"
+        element={
+          <ProtectedRoute>
+            <IntelligenceDashboardPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/notifications"
+        element={
+          <ProtectedRoute>
+            <NotificationsPage />
+          </ProtectedRoute>
+        }
+      />
 
       <Route
         path="/profile"
         element={
           <ProtectedRoute>
-            <ProfilePage />
+            <UniversalProfilePage />
           </ProtectedRoute>
         }
       />
+      
 
       <Route
         path="/favorites"
@@ -82,7 +161,7 @@ export default function AppRoutes() {
       <Route
         path="/dashboard"
         element={
-          <ProtectedRoute allowedRoles={["seller", "admin", "super_admin"]}>
+          <ProtectedRoute allowedRoles={["user", "buyer"]}>
             <DashboardPage />
           </ProtectedRoute>
         }
@@ -91,7 +170,7 @@ export default function AppRoutes() {
       <Route
         path="/add-property"
         element={
-          <ProtectedRoute allowedRoles={["seller", "admin", "super_admin"]}>
+          <ProtectedRoute allowedRoles={["seller", "agency", "admin", "super_admin"]}>
             <AddPropertyPage />
           </ProtectedRoute>
         }
@@ -100,16 +179,17 @@ export default function AppRoutes() {
       <Route
         path="/edit-property/:id"
         element={
-          <ProtectedRoute allowedRoles={["seller", "admin", "super_admin"]}>
+          <ProtectedRoute allowedRoles={["seller", "agency", "admin", "super_admin"]}>
             <EditPropertyPage />
           </ProtectedRoute>
         }
       />
 
+
       <Route
         path="/leads"
         element={
-          <ProtectedRoute allowedRoles={["seller", "admin", "super_admin"]}>
+          <ProtectedRoute allowedRoles={["seller", "agent", "agency", "admin", "super_admin"]}>
             <LeadsDashboardPage />
           </ProtectedRoute>
         }
@@ -118,7 +198,7 @@ export default function AppRoutes() {
       <Route
         path="/owner/leads"
         element={
-          <ProtectedRoute allowedRoles={["owner", "seller", "admin"]}>
+          <ProtectedRoute allowedRoles={["owner", "seller", "agency", "admin"]}>
             <LeadsDashboardPage />
           </ProtectedRoute>
         }
@@ -127,8 +207,17 @@ export default function AppRoutes() {
       <Route
         path="/admin/analytics"
         element={
-          <ProtectedRoute allowedRoles={["super_admin"]}>
+          <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
             <AdminAnalyticsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/kyc-verification"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+            <KycVerificationDesk />
           </ProtectedRoute>
         }
       />
@@ -136,17 +225,149 @@ export default function AppRoutes() {
       <Route
         path="/admin-dashboard"
         element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <StandardAdminDashboardPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/super-admin-dashboard"
+        element={
           <ProtectedRoute allowedRoles={["super_admin"]}>
             <AdminDashboardPage />
           </ProtectedRoute>
         }
       />
 
+
       <Route
         path="/admin/matrix-settings"
         element={
           <ProtectedRoute allowedRoles={["super_admin"]}>
             <MatrixSettingsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/subscriptions"
+        element={
+          <ProtectedRoute allowedRoles={["super_admin"]}>
+            <AdminSubscriptionsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/billing"
+        element={
+          <ProtectedRoute allowedRoles={["super_admin"]}>
+            <AdminBillingPage />
+          </ProtectedRoute>
+        }
+      />
+
+        <Route
+        path="/admin/matrix-settings"
+        element={
+          <ProtectedRoute allowedRoles={["super_admin"]}>
+            <AdminSettingsDashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+  path="/admin/audit-logs"
+  element={
+    <ProtectedRoute allowedRoles={["super_admin"]}>
+      <AuditChangelogPage />
+    </ProtectedRoute>
+    }
+    />
+
+
+      <Route
+        path="/admin/properties-control"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+            <AdminPropertyControlPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/system-health"
+        element={
+          <ProtectedRoute allowedRoles={["super_admin"]}>
+            <AdminSystemHealthPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+  path="/admin/alerts"
+  element={
+    <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+      <AdminAlertCenterPage />
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="/dashboard/revenue"
+  element={
+    <ProtectedRoute allowedRoles={["seller", "admin", "super_admin"]}>
+      <SellerRevenuePage />
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="/dashboard/market-insights"
+  element={
+    <ProtectedRoute allowedRoles={["seller", "admin", "super_admin"]}>
+      <MarketInsightsPage />
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="/admin/kyc-verification"
+  element={
+    <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+      <AdminKYCCenterPage />
+    </ProtectedRoute>
+  }
+/>
+
+      <Route
+        path="/pipeline"
+        element={
+          <ProtectedRoute allowedRoles={["agency", "agent"]}>
+            <PipelineKanban />
+          </ProtectedRoute>
+        }
+      />
+
+
+      <Route
+        path="/agency-dashboard"
+        element={
+          <ProtectedRoute allowedRoles={["agency"]}>
+            <AgencyDashboardPage />
+          </ProtectedRoute>
+        }
+      />
+
+
+
+
+      <Route
+        path="/agent-dashboard"
+        element={
+          <ProtectedRoute allowedRoles={["agent"]}>
+            <AgentDashboardPage />
           </ProtectedRoute>
         }
       />

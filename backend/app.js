@@ -1,3 +1,4 @@
+import 'dotenv/config'; 
 import express from "express";
 import cors from "cors";
 import authRoutes from "./src/routes/authRoutes.js";
@@ -22,14 +23,39 @@ import trendingRoutes from  "./src/routes/trendingRoutes.js";
 import recentlyViewedRoutes from  "./src/routes/recentlyViewedRoutes.js";
 import recommendationRoutes from  "./src/routes/recommendationRoutes.js";
 import subscriptionRoutes from  "./src/routes/subscriptionRoutes.js";
-
+import billingRoutes from  "./src/routes/billingRoutes.js";
+import intelligenceRoutes from  "./src/routes/intelligenceRoutes.js";
+import agencyRoutes from "./src/routes/agencyRoutes.js";
+import "./src/models/Agency.js";
 import { upgradePlan } from "./src/controllers/subscriptionController.js";
 import { protect } from "./src/middleware/authMiddleware.js";
 import Subscription from "./src/models/Subscription.js";
 import mongoose from "mongoose";
+import leadManagementRoutes from "./src/routes/leadManagementRoutes.js";
+import propertyManagementRoutes from "./src/routes/propertyManagementRoutes.js";
+import agentActivityRoutes from "./src/routes/agentActivityRoutes.js";
+import pipelineRoutes from "./src/routes/pipelineRoutes.js";
+import leadTaskRoutes from "./src/routes/leadTaskRoutes.js";
+import leadFileRoutes from "./src/routes/leadFileRoutes.js";
+import "./src/models/KycVerification.js";
+import calendarRoutes from "./src/routes/calendarRoutes.js";
+import profileRoutes from "./src/routes/profileRoutes.js";
+import agentDashboardRoutes from "./src/routes/agentDashboardRoutes.js";
+import agentRoutes from "./src/routes/agentRoutes.js";
+
+import { seedPlans } from "./src/seed/subscriptionPlans.js";
 
 const app = express();
-trendingRoutes
+
+// 🟢 Socket.io Context Middleware Injection via Express app property configuration tracking node
+app.use((req, res, next) => {
+  const ioInstance = app.get("io");
+  if (ioInstance) {
+    req.io = ioInstance;
+  }
+  next();
+});
+
 app.use(cors({
   origin: ["http://localhost:5173", "http://localhost:3000"],
   credentials: true
@@ -74,6 +100,17 @@ app.use("/api/analytics", analyticsRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/property-sla", propertySLARoutes);
+app.use("/api/agency", agencyRoutes);
+app.use("/api/agency/leads", leadManagementRoutes);
+app.use("/api/agency/properties", propertyManagementRoutes);
+app.use("/api/activities", agentActivityRoutes);
+app.use("/api", leadTaskRoutes);
+app.use("/api", leadFileRoutes);
+app.use("/api/calendar", calendarRoutes);
+
+app.use("/api/profiles", profileRoutes);
+app.use("/api/agent", agentDashboardRoutes);
+app.use("/api/agent", agentRoutes);
 
 app.use(
   "/api/property-analytics",
@@ -113,39 +150,17 @@ app.use(
   subscriptionRoutes
 );
 
-const seedAccountToPro = async () => {
-  try {
-    if (mongoose.connection.readyState !== 1) {
-      await new Promise((resolve) => mongoose.connection.once("open", resolve));
-    }
+app.use(
+  "/api/intelligence",
+  intelligenceRoutes
+);
 
-    const User = mongoose.model("User");
-    const user = await User.findOne({ email: "1234567890@gmail.com" });
+app.use(
+  "/api/pipeline",
+  pipelineRoutes
+);
 
-
-    if (!user) return;
-
-    let sub = await Subscription.findOne({ user: user._id });
-    if (!sub) {
-      sub = new Subscription({ user: user._id });
-    }
-
-    sub.plan = "pro";
-    sub.status = "active";
-    sub.startDate = new Date();
-    sub.endDate = null;
-
-    await sub.save();
-    console.log(`\n======================================================`);
-    console.log(`⚡ [SUCCESS] FORCE-UPGRADED ACCOUNT TO PRO TIER IN DB!`);
-    console.log(`👤 User ID: ${user._id}`);
-    console.log(`✉️  Email:   ${user.email}`);
-    console.log(`======================================================\n`);
-  } catch (err) {
-    console.error(`[Developer Seeder Error] Migration failed: ${err.message}`);
-  }
-};
-
-seedAccountToPro();
+app.use("/api/billing", billingRoutes);
+app.use("/api/admin", adminRoutes);
 
 export default app;

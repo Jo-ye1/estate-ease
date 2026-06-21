@@ -1,107 +1,67 @@
-import React, {
-  useEffect,
-  useState,
-} from "react";
-import {
-  getPropertyAnalytics,
-  getPropertySLA,
-} from "@/services/propertyAnalyticsService";
+import React, { useEffect, useState } from "react";
+import { getPropertyAnalytics, getPropertySLA } from "@/services/propertyAnalyticsService";
+import { Eye, Heart, UserCheck, Flame } from "lucide-react"; // 🟢 Functional anchors for high scannability
 
-const PropertyAnalyticsPanel = ({
-  propertyId,
-}) => {
-  const [analytics, setAnalytics] =
-    useState(null);
-
-  const [sla, setSla] =
-    useState(null);
+const PropertyAnalyticsPanel = ({ propertyId }) => {
+  const [analytics, setAnalytics] = useState(null);
+  const [sla, setSla] = useState(null);
 
   useEffect(() => {
     const load = async () => {
-      const analyticsData =
-        await getPropertyAnalytics(
-          propertyId
-        );
-
-      const slaData =
-        await getPropertySLA(propertyId);
-
-      setAnalytics(analyticsData);
-      setSla(slaData);
+      try {
+        const analyticsData = await getPropertyAnalytics(propertyId);
+        const slaData = await getPropertySLA(propertyId);
+        setAnalytics(analyticsData);
+        setSla(slaData);
+      } catch (err) {
+        console.error("Failed to load embedded summary indicators:", err);
+      }
     };
-
     load();
   }, [propertyId]);
 
-  if (!analytics || !sla)
-    return null;
+  if (!analytics) return null;
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-      <Metric
-        label="Views"
-        value={analytics.views}
+    // 🟢 TRANSFORMED: Renders as a single compact row of high-density micro-badges to prevent clipping
+    <div className="flex items-center justify-between gap-1 w-full pt-3 border-t border-slate-100 dark:border-slate-800/60 mt-3">
+      <MicroBadge 
+        icon={<Eye className="w-3 h-3 text-blue-500" />} 
+        label="Views" 
+        value={analytics.views} 
       />
-      <Metric
-        label="Favorites"
-        value={analytics.favorites}
+      <MicroBadge 
+        icon={<Heart className="w-3 h-3 text-red-500" />} 
+        label="Favs" 
+        value={analytics.favorites} 
       />
-      <Metric
-        label="Leads"
-        value={analytics.leadRequests}
+      <MicroBadge 
+        icon={<UserCheck className="w-3 h-3 text-emerald-500" />} 
+        label="Leads" 
+        value={analytics.leadRequests} 
       />
-      <Metric
-        label="Conversion"
-        value={`${analytics.conversionRate}%`}
-      />
-      <Metric
-        label="Days On Market"
-        value={analytics.daysOnMarket}
-      />
-      <Metric
-        label="First Lead"
-        value={formatMs(
-          sla.timeToFirstLead
-        )}
-      />
-      <Metric
-        label="Publish Speed"
-        value={formatMs(
-          sla.timeToPublish
-        )}
-      />
-      <Metric
-        label="Close Speed"
-        value={formatMs(
-          sla.timeToClose
-        )}
+      <MicroBadge 
+        icon={<Flame className="w-3 h-3 text-amber-500" />} 
+        label="Conv" 
+        value={`${analytics.conversionRate || 0}%`} 
       />
     </div>
   );
 };
 
-const Metric = ({
-  label,
-  value,
-}) => (
-  <div className="bg-white p-4 rounded-xl border">
-    <p className="text-xs text-gray-400">
+const MicroBadge = ({ icon, label, value }) => (
+  // 🟢 COMPACT STYLING: Scaled down with text-[10px] bounding boxes to sit inside card limits comfortably
+  <div className="flex flex-col items-center justify-center flex-1 bg-slate-50 dark:bg-slate-950/40 py-1 px-1.5 rounded-lg border border-slate-100 dark:border-slate-800/50 min-w-0">
+    <div className="flex items-center gap-1 min-w-0">
+      {icon}
+      <span className="text-[10px] font-extrabold text-slate-800 dark:text-slate-200 truncate">
+        {value ?? "0"}
+      </span>
+    </div>
+    <p className="text-[8.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-0.5">
       {label}
     </p>
-    <h3 className="font-bold text-lg">
-      {value ?? "-"}
-    </h3>
   </div>
 );
-
-const formatMs = (ms) => {
-  if (!ms) return "-";
-
-  const days = Math.floor(
-    ms / (1000 * 60 * 60 * 24)
-  );
-
-  return `${days} days`;
-};
 
 export default PropertyAnalyticsPanel;

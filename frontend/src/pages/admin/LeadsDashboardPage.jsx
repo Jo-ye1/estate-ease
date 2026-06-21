@@ -5,6 +5,76 @@ import { updateLeadStatus } from "@/services/leadService";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
+// 🟢 INTERNAL ISOLATED ROW COMPONENT: Handles independent drop-down interaction state rules
+function LeadRowItem({ lead, onStatusChanged, onNavigate }) {
+  const [localStatus, setLocalStatus] = useState(lead?.status || "new");
+
+  // Keep local dropdown tracking variable synchronized if a parent refetch happens
+  useEffect(() => {
+    if (lead?.status) {
+      setLocalStatus(lead.status);
+    }
+  }, [lead?.status]);
+
+  const handleDropdownSelection = async (e) => {
+    const selectedOptionValue = e.target.value;
+    
+    // 1. Immediately visually snap the UI drop-down choice ahead of your API cycle
+    setLocalStatus(selectedOptionValue);
+    
+    // 2. Fire the network data modification request layer upward
+    await onStatusChanged(lead._id, selectedOptionValue);
+  };
+
+  return (
+    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 transition-shadow hover:shadow-md">
+      <div className="flex justify-between gap-6">
+        <div className="space-y-2 flex-1">
+          <h3 className="font-black text-lg text-slate-800 dark:text-slate-100">
+            {lead.property?.title || "Untitled Property"}
+          </h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            {lead.property?.location || "No Location Specified"}
+          </p>
+          <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+            {lead.name}
+          </p>
+          <p className="text-xs text-slate-400">{lead.email}</p>
+          <p className="text-sm mt-3 text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-100 dark:border-slate-800/50">
+            {lead.message}
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-3 items-end justify-between">
+          <select
+            value={localStatus}
+            onChange={handleDropdownSelection}
+            className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-bold outline-none cursor-pointer text-slate-700 dark:text-slate-200"
+          >
+            <option value="new">New</option>
+            <option value="contacted">Contacted</option>
+            <option value="qualified">Qualified</option>
+            <option value="negotiating">Negotiating</option>
+            <option value="won">Won</option>
+            <option value="lost">Lost</option>
+            <option value="archived">Archived</option>
+          </select>
+
+          {lead.buyer && (
+            <button
+              onClick={() => onNavigate("/inbox")}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-colors shadow-sm"
+            >
+              <MessageSquare size={14} />
+              Open Chat
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function LeadsDashboardPage() {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -15,21 +85,14 @@ export default function LeadsDashboardPage() {
   const fetchLeads = async () => {
     try {
       setLoading(true);
-      
-      // 🚀 DIRECT API FIX: Swapped to direct axios request with route isolation and authorization headers
-      const res = await axios.get(
-        "http://localhost:5000/api/leads/owner",
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
+      const res = await axios.get("http://localhost:5000/api/leads/owner", {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
 
-      // Extract data safely from axios response payload
       const data = res?.data;
 
-      // 🛡️ Bulletproof array check prevents .length and .filter crashes
       if (Array.isArray(data)) {
         setLeads(data);
       } else if (data && Array.isArray(data.leads)) {
@@ -52,14 +115,20 @@ export default function LeadsDashboardPage() {
   const handleStatusUpdate = async (id, status) => {
     if (!id) return;
     try {
+      // Execute the PUT call targeting your /pipeline routing signature
       await updateLeadStatus(id, status);
-      fetchLeads();
+      
+      // Update our array local client values silently ahead of background sync cycles
+      setLeads((prevLeads) =>
+        prevLeads.map((item) => (item._id === id ? { ...item, status } : item))
+      );
     } catch (error) {
       console.error("Status update error:", error);
+      // Fallback: reload state array from network source on processing failure
+      fetchLeads();
     }
   };
 
-  // Safe baseline lookup array
   const safeLeads = Array.isArray(leads) ? leads : [];
 
   const filteredLeads =
@@ -71,7 +140,11 @@ export default function LeadsDashboardPage() {
     total: safeLeads.length,
     new: safeLeads.filter((l) => l && l.status === "new").length,
     contacted: safeLeads.filter((l) => l && l.status === "contacted").length,
-    closed: safeLeads.filter((l) => l && l.status === "closed").length,
+    qualified: safeLeads.filter((l) => l && l.status === "qualified").length,
+    negotiating: safeLeads.filter((l) => l && l.status === "negotiating").length,
+    won: safeLeads.filter((l) => l && l.status === "won").length,
+    lost: safeLeads.filter((l) => l && l.status === "lost").length,
+    archived: safeLeads.filter((l) => l && l.status === "archived").length,
   };
 
   return (
@@ -88,15 +161,19 @@ export default function LeadsDashboardPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-4 lg:grid-cols-8 gap-4 mb-8">
           <StatCard title="Total" value={stats.total} />
           <StatCard title="New" value={stats.new} />
           <StatCard title="Contacted" value={stats.contacted} />
-          <StatCard title="Closed" value={stats.closed} />
+          <StatCard title="Qualified" value={stats.qualified} />
+          <StatCard title="Negotiating" value={stats.negotiating} />
+          <StatCard title="Won" value={stats.won} />
+          <StatCard title="Lost" value={stats.lost} />
+          <StatCard title="Archived" value={stats.archived} />
         </div>
 
-        <div className="flex gap-2 mb-6">
-          {["all", "new", "contacted", "closed"].map((status) => (
+        <div className="flex flex-wrap gap-2 mb-6">
+          {["all", "new", "contacted", "qualified", "negotiating", "won", "lost", "archived"].map((status) => (
             <button
               key={status}
               onClick={() => setFilter(status)}
@@ -120,61 +197,14 @@ export default function LeadsDashboardPage() {
         ) : (
           <div className="space-y-4">
             {filteredLeads.map((lead) => {
-              if (!lead) return null; // Skip malformed array entries
-
+              if (!lead) return null;
               return (
-                <div
+                <LeadRowItem 
                   key={lead._id}
-                  className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 transition-shadow hover:shadow-md"
-                >
-                  <div className="flex justify-between gap-6">
-                    <div className="space-y-2 flex-1">
-                      <h3 className="font-black text-lg text-slate-800 dark:text-slate-100">
-                        {lead.property?.title || "Untitled Property"}
-                      </h3>
-
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
-                        {lead.property?.location || "No Location Specified"}
-                      </p>
-
-                      <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                        {lead.name}
-                      </p>
-
-                      <p className="text-xs text-slate-400">
-                        {lead.email}
-                      </p>
-
-                      <p className="text-sm mt-3 text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-100 dark:border-slate-800/50">
-                        {lead.message}
-                      </p>
-                    </div>
-
-                    <div className="flex flex-col gap-3 items-end justify-between">
-                      <select
-                        value={lead.status || "new"}
-                        onChange={(e) =>
-                          handleStatusUpdate(lead._id, e.target.value)
-                        }
-                        className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-bold outline-none cursor-pointer text-slate-700 dark:text-slate-200"
-                      >
-                        <option value="new">New</option>
-                        <option value="contacted">Contacted</option>
-                        <option value="closed">Closed</option>
-                      </select>
-
-                      {lead.buyer && (
-                        <button
-                          onClick={() => navigate("/inbox")}
-                          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-colors shadow-sm"
-                        >
-                          <MessageSquare size={14} />
-                          Open Chat
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                  lead={lead}
+                  onStatusChanged={handleStatusUpdate}
+                  onNavigate={navigate}
+                />
               );
             })}
           </div>

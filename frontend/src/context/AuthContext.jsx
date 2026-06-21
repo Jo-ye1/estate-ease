@@ -102,6 +102,29 @@ export const AuthProvider = ({ children }) => {
     window.location.replace("/");
   };
 
+  useEffect(() => {
+    if (!user) return;
+
+    socket.on("role_escalated", (data) => {
+      alert("Your operational access privileges have been modified by corporate management! Synchronizing desktop environment layout parameters...");
+      
+      const freshlyPromotedUser = {
+        ...user,
+        role: data.newRole,
+        agencyId: data.agencyId
+      };
+
+      localStorage.setItem("user", JSON.stringify(freshlyPromotedUser));
+      setUser(freshlyPromotedUser);
+      
+      window.location.reload();
+    });
+
+    return () => {
+      socket.off("role_escalated");
+    };
+  }, [user]);
+
   return (
     <AuthContext.Provider
       value={{

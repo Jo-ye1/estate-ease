@@ -17,11 +17,6 @@ export const initSocket = (server) => {
       onlineUsers.set(userId, socket.id);
     });
 
-    //socket.on("register-user", (userId) => {
-     // onlineUsers.set(userId, socket.id);
-     // console.log("User registered:", userId);
-    //});
-
     socket.on("disconnect", () => {
       for (const [userId, socketId] of onlineUsers.entries()) {
         if (socketId === socket.id) {
@@ -35,7 +30,15 @@ export const initSocket = (server) => {
   return io;
 };
 
-export const getIO = () => io;
+export const getIO = () => {
+  if (!io) {
+    return {
+      to: () => ({
+        emit: () => true
+      })
+    };
+  }
+  return io;
+};
 
-export const getReceiverSocket = (userId) =>
-  onlineUsers.get(userId);
+export const getReceiverSocket = (userId) => onlineUsers.get(userId);
